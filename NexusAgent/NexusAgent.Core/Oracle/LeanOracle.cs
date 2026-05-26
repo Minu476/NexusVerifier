@@ -147,10 +147,10 @@ public sealed partial class LeanOracle : ILeanOracle
 
             if (ErrorPattern().IsMatch(line))
                 errors.Add(line.Trim());
-            else if (WarningPattern().IsMatch(line))
-                warnings.Add(line.Trim());
             else if (SorryPattern().IsMatch(line))
                 sorryCount++;
+            else if (WarningPattern().IsMatch(line))
+                warnings.Add(line.Trim());
             else if (UnsolvedGoalsPattern().IsMatch(line))
                 pendingGoals.Add(line.Trim());
         }
