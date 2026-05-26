@@ -245,6 +245,8 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
         return 1;
     }
     var source = GetFlag(args, "--source") ?? "OEIS";
+    var maxEpisodes = int.TryParse(GetFlag(args, "--max-episodes"), out var me) ? me : 3;
+    var maxTurns    = int.TryParse(GetFlag(args, "--max-turns"),    out var mt) ? mt : 8;
 
     var orchestrator = host.Services.GetRequiredService<NexusOrchestrator>();
     var router = host.Services.GetRequiredService<TieredLlmRouter>();
@@ -261,7 +263,11 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
         var domain = ExtractDomain(sketch, source);
         var statement = ExtractStatement(sketch);
         var input = new ProblemInput(id, source, domain, file, statement, sketch);
-        var config = new OrchestratorConfig();
+        var config = new OrchestratorConfig
+        {
+            MaxEpisodes        = maxEpisodes,
+            MaxTurnsPerEpisode = maxTurns,
+        };
 
         log.LogInformation("--- Starting {Id} (domain={Domain}, budget remaining: ${Rem:F2}) ---",
             id, domain, router.RemainingBudgetUsd);

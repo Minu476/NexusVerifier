@@ -23,6 +23,8 @@ public sealed class TieredLlmRouter
     private readonly ILogger<TieredLlmRouter> _log;
     private readonly RouterConfig _cfg;
     private decimal _spentUsd;
+    // Circuit breaker: once DeepSeek returns 402/401, skip it for the whole session.
+    private bool _deepSeekUnavailable;
 
     public decimal SpentUsd => _spentUsd;
     public decimal RemainingBudgetUsd => _cfg.BudgetCapUsd - _spentUsd;
@@ -48,6 +50,10 @@ public sealed class TieredLlmRouter
             _log.LogWarning("Budget cap ${Cap:F2} reached; forcing Tier 1 (Qwen local)", _cfg.BudgetCapUsd);
             return _qwen;
         }
+
+        // Circuit breaker: skip DeepSeek tiers entirely if 402 was seen.
+        if (_deepSeekUnavailable)
+            return _qwen;
 
         // Escalation ladder
         if (ctx.TurnIndex < _cfg.TurnsBeforeEscalation)
@@ -75,10 +81,11 @@ public sealed class TieredLlmRouter
             (ex.StatusCode == System.Net.HttpStatusCode.PaymentRequired ||
              ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
+            // Latch the circuit breaker so all subsequent turns skip DeepSeek.
+            _deepSeekUnavailable = true;
             _log.LogWarning(
-                "Tier {Tier} unavailable ({Status}); falling back to Tier 1 (Qwen local)",
+                "Tier {Tier} unavailable ({Status}); circuit breaker latched — using Tier 1 for remainder of session",
                 client.Tier, ex.StatusCode);
-            // Degrade: Tier 1 is always free, never 402.
             var fallback = await _qwen.CompleteAsync(request, ct);
             return fallback;
         }
