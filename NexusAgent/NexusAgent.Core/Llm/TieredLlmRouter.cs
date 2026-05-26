@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using NexusAgent.Core.Models;
 
@@ -64,9 +65,23 @@ public sealed class TieredLlmRouter
         RouterContext ctx, LlmRequest request, CancellationToken ct)
     {
         var client = Select(ctx);
-        var response = await client.CompleteAsync(request, ct);
-        _spentUsd += response.EstimatedCostUsd;
-        return response;
+        try
+        {
+            var response = await client.CompleteAsync(request, ct);
+            _spentUsd += response.EstimatedCostUsd;
+            return response;
+        }
+        catch (HttpRequestException ex) when
+            (ex.StatusCode == System.Net.HttpStatusCode.PaymentRequired ||
+             ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _log.LogWarning(
+                "Tier {Tier} unavailable ({Status}); falling back to Tier 1 (Qwen local)",
+                client.Tier, ex.StatusCode);
+            // Degrade: Tier 1 is always free, never 402.
+            var fallback = await _qwen.CompleteAsync(request, ct);
+            return fallback;
+        }
     }
 }
 

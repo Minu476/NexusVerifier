@@ -91,6 +91,9 @@ internal sealed record OllamaChatRequest
     [JsonPropertyName("messages")]   public required OllamaMessage[] Messages { get; init; }
     [JsonPropertyName("stream")]     public required bool Stream { get; init; }
     [JsonPropertyName("options")]    public OllamaOptions? Options { get; init; }
+    // Disable Qwen 3.x extended thinking — thinking tokens consume num_predict
+    // budget leaving no room for the actual code output (content = "").
+    [JsonPropertyName("think")]      public bool Think { get; init; } = false;
 }
 
 internal sealed record OllamaMessage(
