@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <RootNamespace>NexusAgent.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Neo4j.Driver" Version="5.28.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+  </ItemGroup>
+
+  <!--
+    PRODUCTION: Uncomment this reference once you have the Rich-Learning-Base V2 csproj
+    available at the relative path. The local interfaces in this project (e.g.
+    INexusGraphMemory, INexusStateEncoder, INexusConsonanceChecker) intentionally
+    mirror RichLearning.V2.Abstractions so swapping is a one-line change per file.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Rich-Learning-Base\src\RichLearning.V2\RichLearning.V2.csproj" />
+  </ItemGroup>
+
+</Project>
