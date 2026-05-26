@@ -39,7 +39,7 @@ public sealed class NexusConfig
 
     // ---- LLM: Qwen (local Ollama, Tier 1) ----
     public string OllamaBaseUrl { get; set; } = "http://localhost:11434";
-    public string QwenModelTag { get; set; } = "qwen3.7:35b-a3b";
+    public string QwenModelTag { get; set; } = "qwen3.6:35b-a3b";
 
     // ---- LLM: Qwen cloud / Tier 3 (DashScope international) ----
     // Pricing: $3.23/M input, $0.32/M cached, $9.58/M output (May 2026)

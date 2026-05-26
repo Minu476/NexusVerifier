@@ -3,6 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using NexusAgent.Core.Agent;
 using NexusAgent.Core.Configuration;
 using NexusAgent.Core.Encoding;
@@ -250,20 +253,24 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
     var files = Directory.GetFiles(dir, "*.lean", SearchOption.TopDirectoryOnly);
     log.LogInformation("Benchmark run: {N} problems from {Dir} ({Source})", files.Length, dir, source);
 
-    var results = new List<ProofResult>();
+    var results = new List<BenchRecord>();
     foreach (var file in files.OrderBy(f => f))
     {
         var id = $"{source}_{Path.GetFileNameWithoutExtension(file)}";
         var sketch = await File.ReadAllTextAsync(file);
-        var domain = source.Equals("OEIS", StringComparison.OrdinalIgnoreCase) ? "combinatorics" : "other";
-        var input = new ProblemInput(id, source, domain, file, "(see file)", sketch);
+        var domain = ExtractDomain(sketch, source);
+        var statement = ExtractStatement(sketch);
+        var input = new ProblemInput(id, source, domain, file, statement, sketch);
         var config = new OrchestratorConfig();
 
-        log.LogInformation("--- Starting {Id} (budget remaining: ${Rem:F2}) ---",
-            id, router.RemainingBudgetUsd);
+        log.LogInformation("--- Starting {Id} (domain={Domain}, budget remaining: ${Rem:F2}) ---",
+            id, domain, router.RemainingBudgetUsd);
 
+        var started = DateTime.UtcNow;
         var result = await orchestrator.SolveAsync(input, config, CancellationToken.None);
-        results.Add(result);
+        results.Add(new BenchRecord(id, domain, statement, result));
+
+        PrintResult(result);
 
         if (router.RemainingBudgetUsd <= 0)
         {
@@ -272,7 +279,24 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
         }
     }
 
-    PrintBenchmarkSummary(results, router.SpentUsd);
+    PrintBenchmarkSummary(results.Select(r => r.Result).ToList(), router.SpentUsd);
+
+    // Write JSON + HTML artifacts
+    var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+    var outDir = Path.Combine(dir, "..", "results");
+    Directory.CreateDirectory(outDir);
+    var jsonPath = Path.Combine(outDir, $"bench-{timestamp}.json");
+    var htmlPath = Path.Combine(outDir, $"bench-{timestamp}.html");
+
+    await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+    await File.WriteAllTextAsync(htmlPath, BuildHtmlReport(results, source, dir, router.SpentUsd, timestamp));
+
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine($"Results saved:");
+    Console.WriteLine($"  JSON: {jsonPath}");
+    Console.WriteLine($"  HTML: {htmlPath}");
+    Console.ResetColor();
     return 0;
 }
 
@@ -323,3 +347,197 @@ static string? GetFlag(string[] args, string name)
     if (idx < 0 || idx + 1 >= args.Length) return null;
     return args[idx + 1];
 }
+
+// ─── Phase 8 helpers ─────────────────────────────────────────────────────────
+
+/// <summary>
+/// Extract the primary domain tag from AMS classification in the Lean file.
+/// AMS 05 = Combinatorics, 11 = Number theory, 12-20 = Algebra, 26-49 = Analysis.
+/// </summary>
+static string ExtractDomain(string fileContent, string source)
+{
+    var m = Regex.Match(fileContent, @"AMS\s+(\d+)", RegexOptions.IgnoreCase);
+    if (m.Success && int.TryParse(m.Groups[1].Value, out var amsCode))
+    {
+        return amsCode switch
+        {
+              5 or  6 => "combinatorics",
+             11       => "number_theory",
+            >= 12 and <= 20 => "algebra",
+            >= 26 and <= 49 => "analysis",
+            _ => "other",
+        };
+    }
+    return source.Equals("OEIS", StringComparison.OrdinalIgnoreCase) ? "number_theory" : "other";
+}
+
+/// <summary>
+/// Extract the human-readable statement from the Lean module docstring (/-! ... -/).
+/// Returns the first non-empty content line after the -/ header.
+/// </summary>
+static string ExtractStatement(string fileContent)
+{
+    var m = Regex.Match(fileContent, @"/-!(.*?)-/", RegexOptions.Singleline);
+    if (!m.Success) return "(see file)";
+
+    var lines = m.Groups[1].Value
+        .Split('\n')
+        .Select(l => l.Trim())
+        .Where(l => l.Length > 0 && !l.StartsWith('#'))
+        .Take(3)
+        .ToArray();
+
+    return lines.Length > 0 ? string.Join(" ", lines) : "(see file)";
+}
+
+static string BuildHtmlReport(
+    List<BenchRecord> records,
+    string source,
+    string dir,
+    decimal totalSpent,
+    string timestamp)
+{
+    var solved = records.Count(r => r.Result.Outcome == ProofOutcome.Solved);
+    var total = records.Count;
+    var solveRate = total > 0 ? (100.0 * solved / total) : 0;
+
+    var rowsSb = new StringBuilder();
+    foreach (var rec in records)
+    {
+        var r = rec.Result;
+        var outcomeClass = r.Outcome switch
+        {
+            ProofOutcome.Solved => "solved",
+            ProofOutcome.TimedOut => "timeout",
+            ProofOutcome.LeanEnvironmentError => "error",
+            _ => "failed",
+        };
+        var outcomeEmoji = r.Outcome == ProofOutcome.Solved ? "✅" : (r.Outcome == ProofOutcome.TimedOut ? "⏱️" : "❌");
+        rowsSb.AppendLine($"""
+            <tr class="{outcomeClass}">
+              <td><code>{HtmlEsc(rec.Id)}</code></td>
+              <td><span class="domain-tag">{HtmlEsc(rec.Domain)}</span></td>
+              <td class="statement" title="{HtmlEsc(rec.Statement)}">{HtmlEsc(Truncate(rec.Statement, 80))}</td>
+              <td class="outcome">{outcomeEmoji} {r.Outcome}</td>
+              <td class="num">{r.EpisodesUsed}</td>
+              <td class="num">{r.TurnsUsed}</td>
+              <td class="num">{r.FossilHits}</td>
+              <td class="num">{r.LlmCallsTier1}</td>
+              <td class="num">{r.LlmCallsTier2}</td>
+              <td class="num">{r.LlmCallsTier3}</td>
+              <td class="num">${r.EstimatedCostUsd:F4}</td>
+              <td class="num">{r.TotalDuration.TotalMinutes:F1} min</td>
+            </tr>
+            """);
+    }
+
+    return $$"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>NexusAgent Benchmark — {{source}} {{timestamp}}</title>
+          <style>
+            :root {
+              --bg: #0f1117; --surface: #1a1d27; --border: #2e3248;
+              --solved: #00c896; --failed: #ff5f6d; --timeout: #ffb347; --error: #a0a0a0;
+              --text: #e0e4f0; --muted: #7a809c; --accent: #6e8efb;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px; }
+            h1 { font-size: 1.6rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+            .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+            .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+            .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 28px; min-width: 160px; }
+            .card-value { font-size: 2.4rem; font-weight: 800; }
+            .card-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+            .card.solved .card-value { color: var(--solved); }
+            .card.rate .card-value { color: var(--accent); }
+            .card.cost .card-value { color: var(--timeout); }
+            table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); font-size: 0.85rem; }
+            thead { background: #232637; }
+            th { padding: 12px 10px; text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+            td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+            tr:last-child td { border-bottom: none; }
+            tr.solved td:first-child { border-left: 3px solid var(--solved); }
+            tr.failed td:first-child { border-left: 3px solid var(--failed); }
+            tr.timeout td:first-child { border-left: 3px solid var(--timeout); }
+            tr.error td:first-child { border-left: 3px solid var(--error); }
+            .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+            .outcome { font-weight: 600; }
+            tr.solved .outcome { color: var(--solved); }
+            tr.failed .outcome { color: var(--failed); }
+            tr.timeout .outcome { color: var(--timeout); }
+            tr.error .outcome { color: var(--error); }
+            .domain-tag { background: #2e3248; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; color: var(--muted); }
+            .statement { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.82rem; }
+            code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent); }
+            .footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; }
+          </style>
+        </head>
+        <body>
+          <h1>NexusAgent Benchmark Report</h1>
+          <div class="subtitle">Source: {{source}} · Directory: {{HtmlEsc(dir)}} · Run: {{timestamp}}</div>
+
+          <div class="cards">
+            <div class="card solved">
+              <div class="card-value">{{solved}}/{{total}}</div>
+              <div class="card-label">Problems solved</div>
+            </div>
+            <div class="card rate">
+              <div class="card-value">{{solveRate:F1}}%</div>
+              <div class="card-label">Solve rate</div>
+            </div>
+            <div class="card">
+              <div class="card-value">{{records.Sum(r => r.Result.FossilHits)}}</div>
+              <div class="card-label">Fossil hits</div>
+            </div>
+            <div class="card cost">
+              <div class="card-value">${{totalSpent:F2}}</div>
+              <div class="card-label">Total API spend</div>
+            </div>
+            <div class="card">
+              <div class="card-value">{{records.Sum(r => r.Result.EpisodesUsed)}}</div>
+              <div class="card-label">Total episodes</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Problem ID</th>
+                <th>Domain</th>
+                <th>Statement</th>
+                <th>Outcome</th>
+                <th>Episodes</th>
+                <th>Turns</th>
+                <th>Fossils</th>
+                <th>Qwen calls</th>
+                <th>Flash calls</th>
+                <th>Pro calls</th>
+                <th>Cost</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+        {{rowsSb}}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Generated by NexusAgent CLI · DeepMind Nexus Challenge · {{DateTime.Now:yyyy-MM-dd HH:mm}} UTC
+          </div>
+        </body>
+        </html>
+        """;
+}
+
+static string HtmlEsc(string s) =>
+    s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+static string Truncate(string s, int max) =>
+    s.Length <= max ? s : s[..max] + "…";
+
+/// <summary>Captures per-problem bench results with metadata for reporting.</summary>
+record BenchRecord(string Id, string Domain, string Statement, ProofResult Result);
