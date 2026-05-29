@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║  NexusAgent.VerifiedParts  —  LEGO PLUG-IN                         ║
+    ║                                                                      ║
+    ║  Self-contained. NexusAgent.Core does NOT reference this project.   ║
+    ║                                                                      ║
+    ║  TO ADD  : add <ProjectReference> in NexusAgent.Cli.csproj,        ║
+    ║            call builder.Services.AddVerifiedParts() in Program.cs, ║
+    ║            add "ingest-parts" case to the cmd switch.               ║
+    ║                                                                      ║
+    ║  TO REMOVE: delete this folder, revert those three lines. Done.     ║
+    ╚══════════════════════════════════════════════════════════════════════╝
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>NexusAgent.VerifiedParts</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NexusAgent.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- One-way dependency: we read Core's interfaces; Core never references us. -->
+    <ProjectReference Include="..\NexusAgent.Core\NexusAgent.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,70 @@
+# NexusAgent — Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+# Prerequisites (run once on the host before `docker compose up`):
+#
+#   git clone https://github.com/google-deepmind/formal-conjectures
+#   cd formal-conjectures && lake build && cd ..
+#
+# Then copy .env.example → .env and fill in your values.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Neo4j (graph database) ──────────────────────────────────────────────────
+  neo4j:
+    image: neo4j:5
+    restart: unless-stopped
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-nexus_local}"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── NexusAgent CLI ──────────────────────────────────────────────────────────
+  nexus-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Neo4j connection — points at the compose-network service
+      NEO4J_URI:      "bolt://neo4j:7687"
+      NEO4J_USERNAME: "neo4j"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-nexus_local}"
+      # Default database (override in .env for a named DB)
+      NEXUS_NEO4J_DATABASE: "${NEXUS_NEO4J_DATABASE:-neo4j}"
+      # Lean project path inside the container
+      NEXUS_LEAN_PROJECT: "/formal-conjectures"
+    volumes:
+      # Mount your pre-built formal-conjectures checkout.
+      # NOTE: must be read-write — Lean writes .olean.lock files into .lake/
+      # during `lake env lean` invocations.  Run `lake build` on the host first.
+      - "${FORMAL_CONJECTURES_PATH:-./formal-conjectures}:/formal-conjectures"
+      # Input data (parts.json, vocab, etc.)
+      - "${DATA_PATH:-./data}:/data:ro"
+      # Writable scratch for _nexus_tmp Lean files and logs
+      - nexus_tmp:/home/nexus/.cache
+      - nexus_logs:/app/logs
+    # The container acts as a one-shot CLI tool; override CMD per run:
+    #   docker compose run nexus-agent ingest-parts --from-json /data/parts.json --dry-run
+    command: ["--help"]
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  nexus_tmp:
+  nexus_logs:

@@ -1,0 +1,36 @@
+# .NET build artifacts
+**/bin/
+**/obj/
+*.user
+
+# Test results
+**/TestResults/
+
+# Lean build cache (can be huge — rebuild with `lake build`)
+**/.lake/
+
+# Local environment / secrets
+.env
+
+# Temporary Lean files created by AxiomChecker at runtime
+**/_nexus_tmp/
+
+# Docker build remnants
+*.dockerignore.bak
+
+# Runtime / IDE tooling
+.fsde-runtime/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+*.suo
+*.swp
+.vscode/settings.json
+
+# Large zip artifacts
+*.zip

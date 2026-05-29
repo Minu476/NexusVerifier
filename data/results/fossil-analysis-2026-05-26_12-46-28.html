@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>NexusAgent — Phase 8 Fossil Analysis</title>
+  <style>
+    :root { --bg:#0d1117; --fg:#e6edf3; --accent:#58a6ff; --muted:#8b949e;
+            --card:#161b22; --border:#30363d; --green:#3fb950; --yellow:#d29922; }
+    body  { background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif;
+            max-width:1200px; margin:40px auto; padding:0 20px; }
+    h1    { color:var(--accent); }
+    .subtitle { color:var(--muted); margin-bottom:24px; }
+    .cards { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:32px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:8px;
+            padding:16px 24px; min-width:140px; }
+    .card-value { font-size:2rem; font-weight:700; color:var(--accent); }
+    .card-label { font-size:0.8rem; color:var(--muted); margin-top:4px; }
+    h2 { margin-top:32px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th { text-align:left; padding:8px 12px; border-bottom:2px solid var(--border);
+         color:var(--muted); font-size:0.85rem; }
+    td { padding:8px 12px; border-bottom:1px solid var(--border); font-size:0.85rem; }
+    tr.universal td { background:rgba(63,185,80,0.07); }
+    .snippet { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    code { font-family:'JetBrains Mono','Fira Code',monospace; font-size:0.78rem; color:var(--accent); }
+    .footer { margin-top:32px; color:var(--muted); font-size:0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>NexusAgent — Phase 8 Fossil Vault Analysis</h1>
+  <div class="subtitle">Run: 2026-05-26_12-46-28 · Rich Learning Nexus Challenge</div>
+
+  <div class="cards">
+    <div class="card"><div class="card-value">22</div><div class="card-label">Proof fossils</div></div>
+    <div class="card"><div class="card-value">67</div><div class="card-label">Landmarks</div></div>
+    <div class="card"><div class="card-value">21</div><div class="card-label">Problems solved</div></div>
+    <div class="card"><div class="card-value">2</div><div class="card-label">Domains covered</div></div>
+  </div>
+
+  <h2>Domain Distribution</h2>
+  <table>
+    <thead><tr><th>Domain</th><th>Fossil count</th></tr></thead>
+    <tbody><tr><td>algebra</td><td>15</td></tr><tr><td>combinatorics</td><td>7</td></tr></tbody>
+  </table>
+
+  <h2>Top Fossils by Reuse — Universal Lemmas</h2>
+  <p style="color:var(--muted);font-size:0.85rem;">
+    Highlighted rows (green) are fossils reused across multiple problems —
+    these are the <em>universal lemmas</em> of the proof domain.
+    Higher reuse = more structural value; they form the backbone of the fossil-guided search.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Fossil ID</th><th>Domain</th><th>Uses</th><th>sorry↓</th>
+        <th>Sub-goal snippet</th><th>Tactic snippet</th><th>Source problems</th>
+      </tr>
+    </thead>
+    <tbody><tr class=""><td><code>e2ea0fc69662…</code></td><td>combinatorics</td><td><strong>0</strong></td><td>1</td><td class="snippet">k ≤ n</td><td class="snippet"><code>omega</code></td><td>1</td></tr><tr class=""><td><code>8dfd59d0fe12…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">True</td><td class="snippet"><code>trivial</code></td><td>1</td></tr><tr class=""><td><code>f9c42cc031ef…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">n + 0 = n</td><td class="snippet"><code>ring</code></td><td>1</td></tr><tr class=""><td><code>6ad7cdf2c499…</code></td><td>combinatorics</td><td><strong>0</strong></td><td>1</td><td class="snippet">k ≤ n</td><td class="snippet"><code>omega</code></td><td>1</td></tr><tr class=""><td><code>c72bd3b8cc21…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">True</td><td class="snippet"><code>trivial</code></td><td>1</td></tr><tr class=""><td><code>ac1f332f0e77…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">n + 0 = n</td><td class="snippet"><code>ring</code></td><td>1</td></tr><tr class=""><td><code>b417f1595799…</code></td><td>combinatorics</td><td><strong>0</strong></td><td>1</td><td class="snippet">k ≤ n</td><td class="snippet"><code>omega</code></td><td>1</td></tr><tr class=""><td><code>76d9f9b2ca92…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">True</td><td class="snippet"><code>trivial</code></td><td>1</td></tr><tr class=""><td><code>6e60f74aa8b5…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">n + 0 = n</td><td class="snippet"><code>ring</code></td><td>1</td></tr><tr class=""><td><code>phase3_round…</code></td><td>algebra</td><td><strong>0</strong></td><td>1</td><td class="snippet">∀ n : Nat, n + 0 = n</td><td class="snippet"><code>simp [Nat.add_zero]  -- phase3 round-trip test</code></td><td>1</td></tr></tbody>
+  </table>
+
+  
+
+  <div class="footer">
+    Generated by NexusAgent CLI · DeepMind Nexus Challenge · 2026-05-26 12:46
+  </div>
+</body>
+</html>

@@ -19,6 +19,7 @@ using NexusAgent.Core.Oracle;
 using NexusAgent.Core.Planning;
 using NexusAgent.Core.Prompts;
 using NexusAgent.Core.Safety;
+using NexusAgent.VerifiedParts;             // LEGO: remove with project reference
 
 if (args.Length == 0)
 {
@@ -170,6 +171,7 @@ builder.Services.AddSingleton<BestFirstGraphPlanner>();
 builder.Services.AddSingleton<ILeanOracle, LeanOracle>();
 builder.Services.AddSingleton<NexusProverSubagent>();
 builder.Services.AddSingleton<NexusOrchestrator>();
+builder.Services.AddVerifiedParts();           // LEGO: remove with project reference
 
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
@@ -197,8 +199,9 @@ try
         "stats"     => await RunStatsAsync(host),
         "probe"     => await RunProbeAsync(host),
         "ingest-hg" => await RunIngestHgAsync(host, rest),
-        "scan-hg"   => await RunScanHgAsync(host, rest),
-        _           => UnknownCommand(cmd),
+        "scan-hg"      => await RunScanHgAsync(host, rest),
+        "ingest-parts" => await VerifiedPartsPlugin.RunCommandAsync(host, rest),  // LEGO
+        _              => UnknownCommand(cmd),
     };
 }
 catch (Exception ex)

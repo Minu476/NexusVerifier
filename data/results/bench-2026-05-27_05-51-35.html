@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAgent Benchmark — Erdos 2026-05-27_05-51-35</title>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2e3248;
+      --solved: #00c896; --failed: #ff5f6d; --timeout: #ffb347; --error: #a0a0a0;
+      --text: #e0e4f0; --muted: #7a809c; --accent: #6e8efb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 28px; min-width: 160px; }
+    .card-value { font-size: 2.4rem; font-weight: 800; }
+    .card-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .card.solved .card-value { color: var(--solved); }
+    .card.rate .card-value { color: var(--accent); }
+    .card.cost .card-value { color: var(--timeout); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); font-size: 0.85rem; }
+    thead { background: #232637; }
+    th { padding: 12px 10px; text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.solved td:first-child { border-left: 3px solid var(--solved); }
+    tr.failed td:first-child { border-left: 3px solid var(--failed); }
+    tr.timeout td:first-child { border-left: 3px solid var(--timeout); }
+    tr.error td:first-child { border-left: 3px solid var(--error); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .outcome { font-weight: 600; }
+    tr.solved .outcome { color: var(--solved); }
+    tr.failed .outcome { color: var(--failed); }
+    tr.timeout .outcome { color: var(--timeout); }
+    tr.error .outcome { color: var(--error); }
+    .domain-tag { background: #2e3248; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; color: var(--muted); }
+    .statement { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.82rem; }
+    code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent); }
+    .footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>NexusAgent Benchmark Report</h1>
+  <div class="subtitle">Source: Erdos · Directory: data/erdos_phase9_ams5 · Run: 2026-05-27_05-51-35</div>
+
+  <div class="cards">
+    <div class="card solved">
+      <div class="card-value">53/66</div>
+      <div class="card-label">Problems solved</div>
+    </div>
+    <div class="card rate">
+      <div class="card-value">80.3%</div>
+      <div class="card-label">Solve rate</div>
+    </div>
+    <div class="card">
+      <div class="card-value">441</div>
+      <div class="card-label">Fossil hits</div>
+    </div>
+    <div class="card cost">
+      <div class="card-value">$4.81</div>
+      <div class="card-label">Total API spend</div>
+    </div>
+    <div class="card">
+      <div class="card-value">129</div>
+      <div class="card-label">Total episodes</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Problem ID</th>
+        <th>Domain</th>
+        <th>Statement</th>
+        <th>Outcome</th>
+        <th>Episodes</th>
+        <th>Turns</th>
+        <th>Fossils</th>
+        <th>Avg sim</th>
+        <th>Near-miss</th>
+        <th>Qwen calls</th>
+        <th>Flash calls</th>
+        <th>Pro calls</th>
+        <th>Cost</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr class="solved">
+  <td><code>Erdos_1085</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="Let f_d(n) be minimal such that, in any set of n points in ℝ^d, there exist at most f_d(n) pairs of points which are distance 1 apart. Estimate f_d(n). *Reference:* [erdosproblems.com/1085](https://www.erdosproblems.com/1085)">Let f_d(n) be minimal such that, in any set of n points in ℝ^d, there exist at m…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+  <td class="num">0</td>
+  <td class="num">0.871</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">$0.0312</td>
+  <td class="num">7.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_1104</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* https://www.erdosproblems.com/1104">*Reference:* https://www.erdosproblems.com/1104</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+  <td class="num">1</td>
+  <td class="num">0.879</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">$0.0324</td>
+  <td class="num">4.5 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_1105</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/1105](https://www.erdosproblems.com/1105) - [ESS75] Erdős, P. and Simonovits, M. and Sós, V. T., Anti-{R}amsey theorems. (1975), 633--643.">*References:* - [erdosproblems.com/1105](https://www.erdosproblems.com/1105) - […</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">5</td>
+  <td class="num">0.887</td>
+  <td class="num">0.890 ⚠️</td>
+  <td class="num">4</td>
+  <td class="num">4</td>
+  <td class="num">11</td>
+  <td class="num">$0.1270</td>
+  <td class="num">13.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_1175</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/1175](https://www.erdosproblems.com/1175) - **Chromatic cardinal**: `SimpleGraph.chromaticCardinal` is the cardinal-valued chromatic number defined in `FormalConjecturesForMathlib`. It extends the finite `chromaticNumber` (which takes">*Reference:* [erdosproblems.com/1175](https://www.erdosproblems.com/1175) - **Ch…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">10</td>
+  <td class="num">1</td>
+  <td class="num">0.889</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">4</td>
+  <td class="num">$0.0514</td>
+  <td class="num">7.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_1199</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/1199](https://www.erdosproblems.com/1199) - [Hi79] Hindman, Neil, Partitions and sums of integers with repetition.">*References:* - [erdosproblems.com/1199](https://www.erdosproblems.com/1199) - […</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">1</td>
+  <td class="num">0.899</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">$0.0215</td>
+  <td class="num">2.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_120</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* - [erdosproblems.com/120](https://www.erdosproblems.com/120) - [St20](http://matwbn.icm.edu.pl/ksiazki/fm/fm1/fm1111.pdf) Steinhaus, Hugo, Sur les distances des points dans les ensembles de measure positive. Fund. Math. (1920), 93-104.">*Reference:* - [erdosproblems.com/120](https://www.erdosproblems.com/120) - [St2…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">5</td>
+  <td class="num">21</td>
+  <td class="num">5</td>
+  <td class="num">0.895</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">8</td>
+  <td class="num">5</td>
+  <td class="num">$0.2994</td>
+  <td class="num">41.0 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_13</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/13](https://www.erdosproblems.com/13)">*Reference:* [erdosproblems.com/13](https://www.erdosproblems.com/13)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">9</td>
+  <td class="num">0.891</td>
+  <td class="num">0.867 ⚠️</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">12</td>
+  <td class="num">$0.1006</td>
+  <td class="num">8.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_141</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/141](https://www.erdosproblems.com/141) - [Wikipedia](https://en.wikipedia.org/wiki/Primes_in_arithmetic_progression#Consecutive_primes_in_arithmetic_progression)">*References:* - [erdosproblems.com/141](https://www.erdosproblems.com/141) - [Wi…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">11</td>
+  <td class="num">1</td>
+  <td class="num">0.860</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">5</td>
+  <td class="num">$0.0523</td>
+  <td class="num">6.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_158</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/158](https://www.erdosproblems.com/158) - [ESS94] Erdős, P. and Sárközy, A. and Sós, T., On Sum Sets of Sidon Sets, I. Journal of Number">*References:* - [erdosproblems.com/158](https://www.erdosproblems.com/158) - [ES…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+  <td class="num">0</td>
+  <td class="num">0.843</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">$0.0331</td>
+  <td class="num">6.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_160</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/160](https://www.erdosproblems.com/160)">*Reference:* [erdosproblems.com/160](https://www.erdosproblems.com/160)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">21</td>
+  <td class="num">5</td>
+  <td class="num">0.874</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">7</td>
+  <td class="num">6</td>
+  <td class="num">$0.0980</td>
+  <td class="num">11.6 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_168</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/168](https://www.erdosproblems.com/168)">*Reference:* [erdosproblems.com/168](https://www.erdosproblems.com/168)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">11</td>
+  <td class="num">0</td>
+  <td class="num">0.895</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">5</td>
+  <td class="num">$0.0599</td>
+  <td class="num">7.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_170</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/170](https://www.erdosproblems.com/170)">*Reference:* [erdosproblems.com/170](https://www.erdosproblems.com/170)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">12</td>
+  <td class="num">4</td>
+  <td class="num">0.913</td>
+  <td class="num">—</td>
+  <td class="num">1</td>
+  <td class="num">1</td>
+  <td class="num">6</td>
+  <td class="num">$0.0666</td>
+  <td class="num">6.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_184</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/184](https://www.erdosproblems.com/184) - [BM22] Bucić, M. and Montgomery, R., Towards the Erdős-Gallai Cycle Decomposition Conjecture.">*References:* - [erdosproblems.com/184](https://www.erdosproblems.com/184) - [BM…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">23</td>
+  <td class="num">7</td>
+  <td class="num">0.916</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">6</td>
+  <td class="num">8</td>
+  <td class="num">$0.1195</td>
+  <td class="num">12.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_188</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/188](https://www.erdosproblems.com/188) - [EGMRSS75] Erdős, P. and Graham, R. L. and Montgomery, P. and Rothschild, B. L. and Spencer, J.">*References:* - [erdosproblems.com/188](https://www.erdosproblems.com/188) - [EG…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">19</td>
+  <td class="num">4</td>
+  <td class="num">0.883</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">10</td>
+  <td class="num">2</td>
+  <td class="num">$0.0330</td>
+  <td class="num">6.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_193</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="References: - [erdosproblems.com/193](https://www.erdosproblems.com/193) - [ErGr80] Erdős, P. and Graham, R., Old and new problems and results in combinatorial number">References: - [erdosproblems.com/193](https://www.erdosproblems.com/193) - [ErGr…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">23</td>
+  <td class="num">8</td>
+  <td class="num">0.956</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">7</td>
+  <td class="num">8</td>
+  <td class="num">$0.0644</td>
+  <td class="num">5.6 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_195</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/195](https://www.erdosproblems.com/195) - [Ad22] Adenwalla, S., Avoiding Monotone Arithmetic Progressions in Permutations of Integers.">*References:* - [erdosproblems.com/195](https://www.erdosproblems.com/195) - [Ad…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">35</td>
+  <td class="num">12</td>
+  <td class="num">0.917</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">8</td>
+  <td class="num">12</td>
+  <td class="num">$0.1667</td>
+  <td class="num">16.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_200</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/200](https://www.erdosproblems.com/200)">*Reference:* [erdosproblems.com/200](https://www.erdosproblems.com/200)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">22</td>
+  <td class="num">11</td>
+  <td class="num">0.926</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">4</td>
+  <td class="num">7</td>
+  <td class="num">$0.0754</td>
+  <td class="num">6.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_213</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/213](https://www.erdosproblems.com/213)">*Reference:* [erdosproblems.com/213](https://www.erdosproblems.com/213)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">22</td>
+  <td class="num">2</td>
+  <td class="num">0.904</td>
+  <td class="num">—</td>
+  <td class="num">5</td>
+  <td class="num">5</td>
+  <td class="num">10</td>
+  <td class="num">$0.1001</td>
+  <td class="num">10.4 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_241</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/30](https://www.erdosproblems.com/30) - [erdosproblems.com/241](https://www.erdosproblems.com/241)">*References:* - [erdosproblems.com/30](https://www.erdosproblems.com/30) - [erdo…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">23</td>
+  <td class="num">8</td>
+  <td class="num">0.947</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">9</td>
+  <td class="num">6</td>
+  <td class="num">$0.0843</td>
+  <td class="num">7.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_245</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/245](https://www.erdosproblems.com/245)">*Reference:* [erdosproblems.com/245](https://www.erdosproblems.com/245)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">4</td>
+  <td class="num">4</td>
+  <td class="num">0.948</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_272</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/272](https://www.erdosproblems.com/272)">*Reference:* [erdosproblems.com/272](https://www.erdosproblems.com/272)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">15</td>
+  <td class="num">11</td>
+  <td class="num">0.983</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">1</td>
+  <td class="num">$0.0115</td>
+  <td class="num">1.8 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_273</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/273](https://www.erdosproblems.com/273)">*Reference:* [erdosproblems.com/273](https://www.erdosproblems.com/273)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">12</td>
+  <td class="num">0.959</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">7</td>
+  <td class="num">5</td>
+  <td class="num">$0.0591</td>
+  <td class="num">6.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_285</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/285](https://www.erdosproblems.com/285)">*Reference:* [erdosproblems.com/285](https://www.erdosproblems.com/285)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">0.986</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_295</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/295](https://www.erdosproblems.com/295)">*Reference:* [erdosproblems.com/295](https://www.erdosproblems.com/295)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">11</td>
+  <td class="num">6</td>
+  <td class="num">0.966</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">$0.0290</td>
+  <td class="num">3.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_319</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/319](https://www.erdosproblems.com/319)">*Reference:* [erdosproblems.com/319](https://www.erdosproblems.com/319)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">16</td>
+  <td class="num">6</td>
+  <td class="num">0.946</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">6</td>
+  <td class="num">2</td>
+  <td class="num">$0.1067</td>
+  <td class="num">16.3 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_326</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/326](https://www.erdosproblems.com/326)">*Reference:* [erdosproblems.com/326](https://www.erdosproblems.com/326)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">3</td>
+  <td class="num">36</td>
+  <td class="num">15</td>
+  <td class="num">0.979</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">9</td>
+  <td class="num">12</td>
+  <td class="num">$0.0833</td>
+  <td class="num">8.5 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_329</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/329](https://www.erdosproblems.com/329)">*Reference:* [erdosproblems.com/329](https://www.erdosproblems.com/329)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">10</td>
+  <td class="num">3</td>
+  <td class="num">0.903</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">4</td>
+  <td class="num">$0.0746</td>
+  <td class="num">6.6 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_340</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/340](https://www.erdosproblems.com/340)">*Reference:* [erdosproblems.com/340](https://www.erdosproblems.com/340)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">4</td>
+  <td class="num">20</td>
+  <td class="num">2</td>
+  <td class="num">0.884</td>
+  <td class="num">—</td>
+  <td class="num">5</td>
+  <td class="num">10</td>
+  <td class="num">3</td>
+  <td class="num">$0.1751</td>
+  <td class="num">34.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_358</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/358](https://www.erdosproblems.com/358) - [Ta26] T. Tao, [Erdős problem 358](https://terrytao.wordpress.com/wp-content/uploads/2026/02/erdos-358-2.pdf) (2026)">*References:* - [erdosproblems.com/358](https://www.erdosproblems.com/358) - [Ta…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">32</td>
+  <td class="num">11</td>
+  <td class="num">0.939</td>
+  <td class="num">—</td>
+  <td class="num">4</td>
+  <td class="num">9</td>
+  <td class="num">8</td>
+  <td class="num">$0.1003</td>
+  <td class="num">13.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_36</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/36](https://www.erdosproblems.com/36) - [Wikipedial: Minimum overlap problem](https://en.wikipedia.org/wiki/Minimum_overlap_problem)">*References:* - [erdosproblems.com/36](https://www.erdosproblems.com/36) - [Wiki…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">4</td>
+  <td class="num">0.908</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">$0.0473</td>
+  <td class="num">5.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_43</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/43](https://www.erdosproblems.com/43)">*Reference:* [erdosproblems.com/43](https://www.erdosproblems.com/43)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">0.986</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_494</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/494](https://www.erdosproblems.com/494) - [SeSt58] Selfridge, J. L. and Straus, E., On the determination of numbers by their sums">*References:* - [erdosproblems.com/494](https://www.erdosproblems.com/494) - [Se…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">23</td>
+  <td class="num">11</td>
+  <td class="num">0.925</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">7</td>
+  <td class="num">5</td>
+  <td class="num">$0.0875</td>
+  <td class="num">8.3 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_501</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/501](https://www.erdosproblems.com/501) - [Er61] Erdős, Paul, Some unsolved problems. Magyar Tud. Akad. Mat. Kutató Int. Közl. 6">*References:* - [erdosproblems.com/501](https://www.erdosproblems.com/501) - [Er…</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">14</td>
+  <td class="num">0.922</td>
+  <td class="num">0.899 ⚠️</td>
+  <td class="num">0</td>
+  <td class="num">6</td>
+  <td class="num">4</td>
+  <td class="num">$0.0630</td>
+  <td class="num">6.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_503</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/503](https://www.erdosproblems.com/503)">*Reference:* [erdosproblems.com/503](https://www.erdosproblems.com/503)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">5</td>
+  <td class="num">34</td>
+  <td class="num">2</td>
+  <td class="num">0.858</td>
+  <td class="num">—</td>
+  <td class="num">8</td>
+  <td class="num">13</td>
+  <td class="num">11</td>
+  <td class="num">$0.2488</td>
+  <td class="num">43.9 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_507</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/507](https://www.erdosproblems.com/507) - [CPZ23] Cohen, Alex, Cosmin Pohoata, and Dmitrii Zakharov. &quot;A new upper bound for the Heilbronn">*References:* - [erdosproblems.com/507](https://www.erdosproblems.com/507) - [CP…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">21</td>
+  <td class="num">3</td>
+  <td class="num">0.890</td>
+  <td class="num">—</td>
+  <td class="num">5</td>
+  <td class="num">6</td>
+  <td class="num">7</td>
+  <td class="num">$0.1028</td>
+  <td class="num">15.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_508</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/508](https://www.erdosproblems.com/508) proven by considering the [Moser-Spindel graph] or the [Golomb graph]">*Reference:* [erdosproblems.com/508](https://www.erdosproblems.com/508) proven b…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+  <td class="num">1</td>
+  <td class="num">0.892</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">$0.0137</td>
+  <td class="num">3.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_509</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/509](https://www.erdosproblems.com/509)">*Reference:* [erdosproblems.com/509](https://www.erdosproblems.com/509)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">16</td>
+  <td class="num">2</td>
+  <td class="num">0.863</td>
+  <td class="num">—</td>
+  <td class="num">5</td>
+  <td class="num">4</td>
+  <td class="num">5</td>
+  <td class="num">$0.0802</td>
+  <td class="num">10.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_535</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/535](https://www.erdosproblems.com/535) - [Er64] P. Erdős, _On a problem in elementary number theory and a combinatorial problem_. Math.">*References:* - [erdosproblems.com/535](https://www.erdosproblems.com/535) - [Er…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">19</td>
+  <td class="num">7</td>
+  <td class="num">0.991</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">8</td>
+  <td class="num">1</td>
+  <td class="num">$0.0416</td>
+  <td class="num">9.6 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_539</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="In this problem, a function $h : \mathbb{N} \to\mathbb{N}$ is defined maximally by a specified counting property. The problem asks to estimate $h(n)$. This has been interpreted here as asking for $\Theta(h(n))$.">In this problem, a function $h : \mathbb{N} \to\mathbb{N}$ is defined maximally …</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">4</td>
+  <td class="num">36</td>
+  <td class="num">16</td>
+  <td class="num">0.925</td>
+  <td class="num">—</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">10</td>
+  <td class="num">$0.1430</td>
+  <td class="num">16.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_593</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/593](https://www.erdosproblems.com/593) - [EGH75] Erdős, Paul and Galvin, Fred and Hajnal, András, On set-systems having large">*References:* - [erdosproblems.com/593](https://www.erdosproblems.com/593) - [EG…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">22</td>
+  <td class="num">8</td>
+  <td class="num">0.888</td>
+  <td class="num">—</td>
+  <td class="num">4</td>
+  <td class="num">2</td>
+  <td class="num">8</td>
+  <td class="num">$0.1153</td>
+  <td class="num">15.9 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_595</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/595](https://www.erdosproblems.com/595) - [Er87] Erdős, Paul, Problems and results on set systems and hypergraphs. Extremal problems">*References:* - [erdosproblems.com/595](https://www.erdosproblems.com/595) - [Er…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">19</td>
+  <td class="num">9</td>
+  <td class="num">0.922</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">6</td>
+  <td class="num">2</td>
+  <td class="num">$0.0345</td>
+  <td class="num">7.1 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_61</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/61](https://www.erdosproblems.com/61)">*Reference:* [erdosproblems.com/61](https://www.erdosproblems.com/61)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">13</td>
+  <td class="num">0.977</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">4</td>
+  <td class="num">7</td>
+  <td class="num">$0.0705</td>
+  <td class="num">7.7 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_613</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/613](https://www.erdosproblems.com/613)">*Reference:* [erdosproblems.com/613](https://www.erdosproblems.com/613)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">3</td>
+  <td class="num">0.972</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">$0.0473</td>
+  <td class="num">5.1 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_617</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/617](https://www.erdosproblems.com/617) - [ErGy99] Erdős, Paul and Gyárfás, András, Split and balanced colorings of complete graphs.">*References:* - [erdosproblems.com/617](https://www.erdosproblems.com/617) - [Er…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">15</td>
+  <td class="num">11</td>
+  <td class="num">0.984</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">1</td>
+  <td class="num">$0.0178</td>
+  <td class="num">2.5 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_633</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* * [erdosproblems.com/633](https://www.erdosproblems.com/633) * [So09] Soifer, Alexander, How Does One Cut a Triangle? I">*Reference:* * [erdosproblems.com/633](https://www.erdosproblems.com/633) * [So0…</td>
+  <td class="outcome">❌ EpisodeBudgetExhausted</td>
+  <td class="num">5</td>
+  <td class="num">24</td>
+  <td class="num">13</td>
+  <td class="num">0.921</td>
+  <td class="num">0.898 ⚠️</td>
+  <td class="num">0</td>
+  <td class="num">5</td>
+  <td class="num">6</td>
+  <td class="num">$0.2588</td>
+  <td class="num">38.0 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_659</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/659](https://www.erdosproblems.com/659) - [MoOs06] Moree, Pieter and Osburn, Robert, Two-dimensional lattices with few distances. Enseign. Math. (2) (2006), 361--380">*References:* - [erdosproblems.com/659](https://www.erdosproblems.com/659) - [Mo…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">2</td>
+  <td class="num">1</td>
+  <td class="num">0.888</td>
+  <td class="num">—</td>
+  <td class="num">1</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">1.7 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_705</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/705](https://www.erdosproblems.com/705) - [OD99] P. O'Donnell, High girth unit-distance graphs. PhD Dissertation, Rutgers University (1999).">*References:* - [erdosproblems.com/705](https://www.erdosproblems.com/705) - [OD…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">1</td>
+  <td class="num">1</td>
+  <td class="num">0.954</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.1 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_723</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/723](https://www.erdosproblems.com/723)">*Reference:* [erdosproblems.com/723](https://www.erdosproblems.com/723)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">16</td>
+  <td class="num">0.947</td>
+  <td class="num">0.879 ⚠️</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">5</td>
+  <td class="num">$0.0644</td>
+  <td class="num">6.8 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_757</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/757](https://www.erdosproblems.com/757) - [GyLe95] Gyárfás, András and Lehel, Jenő, Linear sets with five distinct differences among any">*References:* - [erdosproblems.com/757](https://www.erdosproblems.com/757) - [Gy…</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">12</td>
+  <td class="num">0.956</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">5</td>
+  <td class="num">7</td>
+  <td class="num">$0.0814</td>
+  <td class="num">7.9 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_789</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="In this problem, a function $h : \mathbb{N} \to\mathbb{N}$ is defined maximally by some counting property. The problem asks to estimate $h(n)$. This has been interpreted here as asking for $\Theta(h(n))$.">In this problem, a function $h : \mathbb{N} \to\mathbb{N}$ is defined maximally …</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">13</td>
+  <td class="num">0.944</td>
+  <td class="num">0.895 ⚠️</td>
+  <td class="num">0</td>
+  <td class="num">4</td>
+  <td class="num">7</td>
+  <td class="num">$0.0903</td>
+  <td class="num">8.4 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_812</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/812](https://www.erdosproblems.com/812) - [BEFS89] Burr, S. A. and Erd\H{o}s, P. and Faudree, R. J. and Schelp, R. H., On the difference">*References:* - [erdosproblems.com/812](https://www.erdosproblems.com/812) - [BE…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">35</td>
+  <td class="num">19</td>
+  <td class="num">0.973</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">8</td>
+  <td class="num">8</td>
+  <td class="num">$0.0618</td>
+  <td class="num">6.8 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_817</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/817](https://www.erdosproblems.com/817)">*Reference:* [erdosproblems.com/817](https://www.erdosproblems.com/817)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">14</td>
+  <td class="num">0.988</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">4</td>
+  <td class="num">6</td>
+  <td class="num">$0.0585</td>
+  <td class="num">5.9 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_82</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/82](https://www.erdosproblems.com/82)">*Reference:* [erdosproblems.com/82](https://www.erdosproblems.com/82)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">4</td>
+  <td class="num">4</td>
+  <td class="num">0.993</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_835</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/835](https://www.erdosproblems.com/835) - [MT25](https://github.com/QuanyuTang/erdos-problem-835/blob/main/On_Problem_835.pdf)">*References:* - [erdosproblems.com/835](https://www.erdosproblems.com/835) - [MT…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">4</td>
+  <td class="num">44</td>
+  <td class="num">25</td>
+  <td class="num">0.921</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">8</td>
+  <td class="num">8</td>
+  <td class="num">$0.1132</td>
+  <td class="num">17.5 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_865</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/865](https://www.erdosproblems.com/865) - [CES75] Choi, S. L. G. and Erdős, P. and Szemerédi, E., Some additive and multiplicative problems">*References:* - [erdosproblems.com/865](https://www.erdosproblems.com/865) - [CE…</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">9</td>
+  <td class="num">0.909</td>
+  <td class="num">0.887 ⚠️</td>
+  <td class="num">2</td>
+  <td class="num">7</td>
+  <td class="num">6</td>
+  <td class="num">$0.1257</td>
+  <td class="num">12.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_868</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/868](https://www.erdosproblems.com/868) - [LaLa26] Larsen and Larsen, [Erdős problem 868](https://github.com/Larsen-Daniel/Erdos-868/blob/main/868.pdf) (2026)">*References:* - [erdosproblems.com/868](https://www.erdosproblems.com/868) - [La…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">11</td>
+  <td class="num">7</td>
+  <td class="num">0.949</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">2</td>
+  <td class="num">2</td>
+  <td class="num">$0.0341</td>
+  <td class="num">3.6 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_89</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/89](https://www.erdosproblems.com/89)">*Reference:* [erdosproblems.com/89](https://www.erdosproblems.com/89)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">21</td>
+  <td class="num">5</td>
+  <td class="num">0.909</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">6</td>
+  <td class="num">7</td>
+  <td class="num">$0.1694</td>
+  <td class="num">23.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_893</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/893](https://www.erdosproblems.com/893) - [KoLu25] V. Kovač and F. Luca, On the number of divisors of Mersenne numbers. arXiv:2506.04883 (2025).">*References:* - [erdosproblems.com/893](https://www.erdosproblems.com/893) - [Ko…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">3</td>
+  <td class="num">0.980</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">$0.0269</td>
+  <td class="num">2.7 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_899</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/899](https://www.erdosproblems.com/899)">*Reference:* [erdosproblems.com/899](https://www.erdosproblems.com/899)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">2</td>
+  <td class="num">2</td>
+  <td class="num">0.983</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_9</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/9](https://www.erdosproblems.com/9)">*Reference:* [erdosproblems.com/9](https://www.erdosproblems.com/9)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">4</td>
+  <td class="num">4</td>
+  <td class="num">0.977</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">0.3 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_90</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/90](https://www.erdosproblems.com/90)">*Reference:* [erdosproblems.com/90](https://www.erdosproblems.com/90)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+  <td class="num">3</td>
+  <td class="num">0.946</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">2</td>
+  <td class="num">$0.0312</td>
+  <td class="num">3.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_91</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* - [Er87b] Erdős, P., Some combinatorial and metric problems in geometry. Intuitive geometry (Siófok, 1985) (1987), 167-177.">*Reference:* - [Er87b] Erdős, P., Some combinatorial and metric problems in geom…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">9</td>
+  <td class="num">0</td>
+  <td class="num">0.819</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">$0.0549</td>
+  <td class="num">9.9 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_918</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/918](https://www.erdosproblems.com/918) - [ErHa68b] Erdős, P. and Hajnal, A., On chromatic number of infinite graphs. (1968), 83--98.">*References:* - [erdosproblems.com/918](https://www.erdosproblems.com/918) - [Er…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">20</td>
+  <td class="num">7</td>
+  <td class="num">0.902</td>
+  <td class="num">—</td>
+  <td class="num">2</td>
+  <td class="num">8</td>
+  <td class="num">3</td>
+  <td class="num">$0.0607</td>
+  <td class="num">9.4 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_920</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/166](https://www.erdosproblems.com/166) - [erdosproblems.com/920](https://www.erdosproblems.com/920)">*References:* - [erdosproblems.com/166](https://www.erdosproblems.com/166) - [er…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">3</td>
+  <td class="num">24</td>
+  <td class="num">15</td>
+  <td class="num">0.960</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">6</td>
+  <td class="num">$0.0790</td>
+  <td class="num">8.3 min</td>
+</tr>
+<tr class="failed">
+  <td><code>Erdos_97</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/97](https://www.erdosproblems.com/97)">*Reference:* [erdosproblems.com/97](https://www.erdosproblems.com/97)</td>
+  <td class="outcome">❌ Aborted</td>
+  <td class="num">2</td>
+  <td class="num">24</td>
+  <td class="num">0</td>
+  <td class="num">0.893</td>
+  <td class="num">0.896 ⚠️</td>
+  <td class="num">6</td>
+  <td class="num">11</td>
+  <td class="num">7</td>
+  <td class="num">$0.1009</td>
+  <td class="num">15.4 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_98</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="*References:* - [[Er75f](https://mathscinet.ams.org/mathscinet/relay-station?mr=411984)] Erdős, Paul, On some problems of elementary and combinatorial geometry.">*References:* - [[Er75f](https://mathscinet.ams.org/mathscinet/relay-station?mr=…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">10</td>
+  <td class="num">4</td>
+  <td class="num">0.899</td>
+  <td class="num">—</td>
+  <td class="num">1</td>
+  <td class="num">2</td>
+  <td class="num">3</td>
+  <td class="num">$0.0300</td>
+  <td class="num">4.2 min</td>
+</tr>
+
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by NexusAgent CLI · DeepMind Nexus Challenge · 2026-05-27 05:51 UTC
+  </div>
+</body>
+</html>

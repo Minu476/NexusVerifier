@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAgent Benchmark — Erdos 2026-05-27_16-22-04</title>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2e3248;
+      --solved: #00c896; --failed: #ff5f6d; --timeout: #ffb347; --error: #a0a0a0;
+      --text: #e0e4f0; --muted: #7a809c; --accent: #6e8efb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 28px; min-width: 160px; }
+    .card-value { font-size: 2.4rem; font-weight: 800; }
+    .card-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .card.solved .card-value { color: var(--solved); }
+    .card.rate .card-value { color: var(--accent); }
+    .card.cost .card-value { color: var(--timeout); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); font-size: 0.85rem; }
+    thead { background: #232637; }
+    th { padding: 12px 10px; text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.solved td:first-child { border-left: 3px solid var(--solved); }
+    tr.failed td:first-child { border-left: 3px solid var(--failed); }
+    tr.timeout td:first-child { border-left: 3px solid var(--timeout); }
+    tr.error td:first-child { border-left: 3px solid var(--error); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .outcome { font-weight: 600; }
+    tr.solved .outcome { color: var(--solved); }
+    tr.failed .outcome { color: var(--failed); }
+    tr.timeout .outcome { color: var(--timeout); }
+    tr.error .outcome { color: var(--error); }
+    .domain-tag { background: #2e3248; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; color: var(--muted); }
+    .statement { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.82rem; }
+    code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent); }
+    .footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>NexusAgent Benchmark Report</h1>
+  <div class="subtitle">Source: Erdos · Directory: /Users/nassertowfigh/Projects/DeepMind-Nexus-Challenge/data/erdos_phase9_ablate2 · Run: 2026-05-27_16-22-04</div>
+
+  <div class="cards">
+    <div class="card solved">
+      <div class="card-value">2/2</div>
+      <div class="card-label">Problems solved</div>
+    </div>
+    <div class="card rate">
+      <div class="card-value">100.0%</div>
+      <div class="card-label">Solve rate</div>
+    </div>
+    <div class="card">
+      <div class="card-value">0</div>
+      <div class="card-label">Fossil hits</div>
+    </div>
+    <div class="card cost">
+      <div class="card-value">$0.07</div>
+      <div class="card-label">Total API spend</div>
+    </div>
+    <div class="card">
+      <div class="card-value">2</div>
+      <div class="card-label">Total episodes</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Problem ID</th>
+        <th>Domain</th>
+        <th>Statement</th>
+        <th>Outcome</th>
+        <th>Episodes</th>
+        <th>Turns</th>
+        <th>Fossils</th>
+        <th>Avg sim</th>
+        <th>Near-miss</th>
+        <th>Qwen calls</th>
+        <th>Flash calls</th>
+        <th>Pro calls</th>
+        <th>Cost</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr class="solved">
+  <td><code>Erdos_1</code></td>
+  <td><span class="domain-tag">combinatorics</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/1](https://www.erdosproblems.com/1)">*Reference:* [erdosproblems.com/1](https://www.erdosproblems.com/1)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">6</td>
+  <td class="num">0</td>
+  <td class="num">—</td>
+  <td class="num">—</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">1.2 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_1085</code></td>
+  <td><span class="domain-tag">other</span></td>
+  <td class="statement" title="Let f_d(n) be minimal such that, in any set of n points in ℝ^d, there exist at most f_d(n) pairs of points which are distance 1 apart. Estimate f_d(n). *Reference:* [erdosproblems.com/1085](https://www.erdosproblems.com/1085)">Let f_d(n) be minimal such that, in any set of n points in ℝ^d, there exist at m…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">10</td>
+  <td class="num">0</td>
+  <td class="num">0.656</td>
+  <td class="num">—</td>
+  <td class="num">3</td>
+  <td class="num">3</td>
+  <td class="num">4</td>
+  <td class="num">$0.0675</td>
+  <td class="num">5.4 min</td>
+</tr>
+
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by NexusAgent CLI · DeepMind Nexus Challenge · 2026-05-27 16:22 UTC
+  </div>
+</body>
+</html>

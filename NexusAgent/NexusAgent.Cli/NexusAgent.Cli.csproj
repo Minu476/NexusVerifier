@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NexusAgent.Core\NexusAgent.Core.csproj" />
+    <!-- LEGO: remove this line (and AddVerifiedParts call + switch case in Program.cs) to unplug -->
+    <ProjectReference Include="..\NexusAgent.VerifiedParts\NexusAgent.VerifiedParts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -20,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NexusAgent.Core\NexusAgent.Core.csproj" />
-  </ItemGroup>
+    <ProjectReference Include="..\NexusAgent.Core\NexusAgent.Core.csproj" />    <ProjectReference Include="..\.\NexusAgent.VerifiedParts\NexusAgent.VerifiedParts.csproj" />  </ItemGroup>
 
 </Project>

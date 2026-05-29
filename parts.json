@@ -1,0 +1,122 @@
+[
+  {
+    "PartName": "erdos_1148.variants.lower_bound",
+    "ProblemId": "Erdos_1148",
+    "DomainTag": "combinatorics",
+    "StatementText": "¬ Erdos1148Prop 6563",
+    "ProofBlock": "by\n  decide +native",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«1148»\nopen Filter\nopen Erdos1148",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_647.variants.twenty_four",
+    "ProblemId": "Erdos_647",
+    "DomainTag": "combinatorics",
+    "StatementText": "⨆ m : Fin 24, (m : ℕ) + σ 0 m ≤ 26",
+    "ProofBlock": "by\n  exact ciSup_le <| by decide",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«647»\nopen Filter ArithmeticFunction.sigma\nopen Erdos647",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_313.variants.solution_6_2_3",
+    "ProblemId": "Erdos_313",
+    "DomainTag": "combinatorics",
+    "StatementText": "(6, {2, 3}) ∈ erdos313Solutions",
+    "ProofBlock": "by\n  norm_num [erdos313Solutions]",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«313»\nopen Erdos313",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_313.variants.solution_42_2_3_7",
+    "ProblemId": "Erdos_313",
+    "DomainTag": "combinatorics",
+    "StatementText": "(42, {2, 3, 7}) ∈ erdos313Solutions",
+    "ProofBlock": "by\n  norm_num [erdos313Solutions]",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«313»\nopen Erdos313",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_1074.variants.mem_pillaiPrimes",
+    "ProblemId": "Erdos_1074",
+    "DomainTag": "combinatorics",
+    "StatementText": "23 ∈ PillaiPrimes",
+    "ProofBlock": "by\n  norm_num\n  exact ⟨14, by decide⟩",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«1074»\nopen scoped Nat\nopen Nat\nopen Erdos1074",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_1056.variants.k2",
+    "ProblemId": "Erdos_1056",
+    "DomainTag": "combinatorics",
+    "StatementText": "AllModProdEqualsOne 11 ![3, 5, 8]",
+    "ProofBlock": "by\n  unfold AllModProdEqualsOne\n  decide",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«1056»\nopen Nat\nopen Erdos1056",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_1056.variants.k3",
+    "ProblemId": "Erdos_1056",
+    "DomainTag": "combinatorics",
+    "StatementText": "AllModProdEqualsOne 17 ![2, 6, 12, 16]",
+    "ProofBlock": "by\n  unfold AllModProdEqualsOne\n  decide",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«1056»\nopen Nat\nopen Erdos1056",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "erdos_859.variants.trivial_case",
+    "ProblemId": "Erdos_859",
+    "DomainTag": "combinatorics",
+    "StatementText": "DivisorSumSet 0 = Set.univ",
+    "ProofBlock": "by\n  simp [DivisorSumSet, Exists.intro ∅]",
+    "ImportsHeader": "import FormalConjectures.ErdosProblems.«859»\nopen Asymptotics Filter\nopen Erdos859",
+    "Scope": "Weaker",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "z_zero",
+    "ProblemId": "FC_LatinSquare",
+    "DomainTag": "mathematics",
+    "StatementText": "z 0 = 1",
+    "ProofBlock": "by native_decide",
+    "ImportsHeader": "import FormalConjectures.Paper.LatinSquare\nopen LatinSquare",
+    "Scope": "Unknown",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  },
+  {
+    "PartName": "z_odd_values",
+    "ProblemId": "FC_LatinSquare",
+    "DomainTag": "mathematics",
+    "StatementText": "[z 1, z 3, z 5, z 7] = [1, 3, 15, 133]",
+    "ProofBlock": "by native_decide",
+    "ImportsHeader": "import FormalConjectures.Paper.LatinSquare\nopen LatinSquare",
+    "Scope": "Unknown",
+    "FullScopeConfirmed": false,
+    "IsHeldOut": false,
+    "Source": "fc-upstream"
+  }
+]

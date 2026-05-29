@@ -1,0 +1,35 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/.lake/
+**/docbuild/
+
+# Secrets — never bake into image
+.env
+**/*.user
+**/*.pfx
+**/*.key
+
+# Git & IDE
+.git/
+.gitignore
+.vs/
+.vscode/
+*.suo
+*.user
+
+# Lean tmp / caches
+**/_nexus_tmp/
+**/hg_cache.jsonl
+**/logs/
+
+# Data (mounted at runtime via volume)
+data/
+formal-conjectures/
+
+# Test output
+**/TestResults/
+**/coverage/
+
+# macOS
+.DS_Store

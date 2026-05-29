@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAgent Benchmark — Erdos 2026-05-26_14-55-04</title>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2e3248;
+      --solved: #00c896; --failed: #ff5f6d; --timeout: #ffb347; --error: #a0a0a0;
+      --text: #e0e4f0; --muted: #7a809c; --accent: #6e8efb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 28px; min-width: 160px; }
+    .card-value { font-size: 2.4rem; font-weight: 800; }
+    .card-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .card.solved .card-value { color: var(--solved); }
+    .card.rate .card-value { color: var(--accent); }
+    .card.cost .card-value { color: var(--timeout); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); font-size: 0.85rem; }
+    thead { background: #232637; }
+    th { padding: 12px 10px; text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.solved td:first-child { border-left: 3px solid var(--solved); }
+    tr.failed td:first-child { border-left: 3px solid var(--failed); }
+    tr.timeout td:first-child { border-left: 3px solid var(--timeout); }
+    tr.error td:first-child { border-left: 3px solid var(--error); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .outcome { font-weight: 600; }
+    tr.solved .outcome { color: var(--solved); }
+    tr.failed .outcome { color: var(--failed); }
+    tr.timeout .outcome { color: var(--timeout); }
+    tr.error .outcome { color: var(--error); }
+    .domain-tag { background: #2e3248; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; color: var(--muted); }
+    .statement { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.82rem; }
+    code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent); }
+    .footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>NexusAgent Benchmark Report</h1>
+  <div class="subtitle">Source: Erdos · Directory: /Users/nassertowfigh/Projects/DeepMind-Nexus-Challenge/data/erdos_phase8_remaining · Run: 2026-05-26_14-55-04</div>
+
+  <div class="cards">
+    <div class="card solved">
+      <div class="card-value">4/4</div>
+      <div class="card-label">Problems solved</div>
+    </div>
+    <div class="card rate">
+      <div class="card-value">100.0%</div>
+      <div class="card-label">Solve rate</div>
+    </div>
+    <div class="card">
+      <div class="card-value">8</div>
+      <div class="card-label">Fossil hits</div>
+    </div>
+    <div class="card cost">
+      <div class="card-value">$0.05</div>
+      <div class="card-label">Total API spend</div>
+    </div>
+    <div class="card">
+      <div class="card-value">5</div>
+      <div class="card-label">Total episodes</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Problem ID</th>
+        <th>Domain</th>
+        <th>Statement</th>
+        <th>Outcome</th>
+        <th>Episodes</th>
+        <th>Turns</th>
+        <th>Fossils</th>
+        <th>Qwen calls</th>
+        <th>Flash calls</th>
+        <th>Pro calls</th>
+        <th>Cost</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr class="solved">
+  <td><code>Erdos_239</code></td>
+  <td><span class="domain-tag">number_theory</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/239](https://www.erdosproblems.com/239) - [Ha68] Halász, G., Über die Mittelwerte multiplikativer zahlentheoretischer">*References:* - [erdosproblems.com/239](https://www.erdosproblems.com/239) - [Ha…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">6</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">1</td>
+  <td class="num">2</td>
+  <td class="num">$0.0167</td>
+  <td class="num">2.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_248</code></td>
+  <td><span class="domain-tag">number_theory</span></td>
+  <td class="statement" title="*References:* - [erdosproblems.com/248](https://www.erdosproblems.com/248) - [TaTe25] T. Tao and J. Teräväinen, Quantitative correlations and some problems on prime factors of consecutive integers. arXiv:2512.01739 (2025).">*References:* - [erdosproblems.com/248](https://www.erdosproblems.com/248) - [Ta…</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">5</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">1</td>
+  <td class="num">1</td>
+  <td class="num">$0.0067</td>
+  <td class="num">1.8 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_250</code></td>
+  <td><span class="domain-tag">number_theory</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/250](https://www.erdosproblems.com/250)">*Reference:* [erdosproblems.com/250](https://www.erdosproblems.com/250)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">2</td>
+  <td class="num">19</td>
+  <td class="num">8</td>
+  <td class="num">4</td>
+  <td class="num">1</td>
+  <td class="num">6</td>
+  <td class="num">$0.0276</td>
+  <td class="num">3.9 min</td>
+</tr>
+<tr class="solved">
+  <td><code>Erdos_48</code></td>
+  <td><span class="domain-tag">number_theory</span></td>
+  <td class="statement" title="*Reference:* [erdosproblems.com/48](https://www.erdosproblems.com/48)">*Reference:* [erdosproblems.com/48](https://www.erdosproblems.com/48)</td>
+  <td class="outcome">✅ Solved</td>
+  <td class="num">1</td>
+  <td class="num">3</td>
+  <td class="num">0</td>
+  <td class="num">3</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">$0.0000</td>
+  <td class="num">2.3 min</td>
+</tr>
+
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by NexusAgent CLI · DeepMind Nexus Challenge · 2026-05-26 14:55 UTC
+  </div>
+</body>
+</html>
