@@ -3,12 +3,13 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "NexusVerifier"
 abstract: >
-  NexusAgent is a graph-augmented Lean 4 verification pipeline for evaluating,
+  NexusVerifier is a graph-augmented Lean 4 verification pipeline for evaluating,
   filtering, and indexing formally verified proof artifacts from the Formal
-  Conjectures benchmark, released by Google DeepMind under Apache 2.0. It provides
-  mechanical proof verification via axiom-closure inspection, declaration-family
-  holdout isolation to prevent benchmark leakage, and a Neo4j-backed fossil vault
-  for reusable sub-goal indexing. Independent project; not affiliated with Google DeepMind.
+  Conjectures benchmark corpus (released by Google DeepMind under Apache 2.0).
+  It provides mechanical proof verification via axiom-closure inspection,
+  declaration-family holdout isolation to prevent benchmark leakage, and a
+  Neo4j-backed fossil vault for reusable sub-goal indexing. This is an independent
+  research project and is not affiliated with or endorsed by Google DeepMind.
 authors:
   - family-names: Towfigh
     given-names: Nasser
@@ -26,8 +27,8 @@ keywords:
   - proof infrastructure
 references:
   - type: article
-    title: "Formal Conjectures"
+    title: "Formal Conjectures: An Open and Evolving Benchmark for Verified Discovery in Mathematics"
     authors:
-      - name: "Google DeepMind"
+      - name: "The Formal Conjectures Authors"
     url: "https://arxiv.org/abs/2605.13171"
     year: 2026
