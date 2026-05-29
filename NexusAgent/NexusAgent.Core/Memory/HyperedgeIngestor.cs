@@ -8,15 +8,22 @@ namespace NexusAgent.Core.Memory;
 /// <summary>
 /// Reads the JSONL file written by the Lean ErdosHypergraph engine
 /// (<c>_nexus_tmp/hg_cache.jsonl</c>) and upserts each edge into Neo4j
-/// as a <c>:HyperedgeRecord</c> node. Run once after <c>buildHypergraph</c>
-/// completes; subsequent Lean runs load from the JSONL file directly
-/// (no Neo4j round-trip needed from Lean side).
+/// as a <c>:HyperedgeRecord</c> node.
+///
+/// <para>
+/// Two cache files are written on a cold Lean run:
+/// <list type="bullet">
+///   <item><c>hg_cache.hge</c> — tab-separated, read by Lean warm-start (fast reload)</item>
+///   <item><c>hg_cache.jsonl</c> — JSON lines, read by this ingestor → Neo4j</item>
+/// </list>
+/// </para>
 ///
 /// <para>Pipeline:</para>
 /// <code>
-///   Lean buildHypergraph → hg_cache.jsonl ──→ HyperedgeIngestor → Neo4j :HyperedgeRecord
-///                               ↑                                         ↓
-///                        Lean warm-start                       C# agent Cypher queries
+///   Lean cold run → hg_cache.hge   (Lean warm-start, ~0.2s)
+///                → hg_cache.jsonl → HyperedgeIngestor → Neo4j :HyperedgeRecord
+///                                                              ↓
+///                                                   C# agent Cypher queries
 /// </code>
 /// </summary>
 public sealed class HyperedgeIngestor
