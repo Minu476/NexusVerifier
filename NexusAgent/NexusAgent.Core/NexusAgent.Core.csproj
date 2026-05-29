@@ -17,13 +17,15 @@
   </ItemGroup>
 
   <!--
-    PRODUCTION: Uncomment this reference once you have the Rich-Learning-Base V2 csproj
+    FUTURE: Uncomment this reference once you have the Rich-Learning-Base V2 csproj
     available at the relative path. The local interfaces in this project (e.g.
     INexusGraphMemory, INexusStateEncoder, INexusConsonanceChecker) intentionally
     mirror RichLearning.V2.Abstractions so swapping is a one-line change per file.
-  -->
+    NOTE: This reference is intentionally disabled — Rich-Learning-Base lives outside
+    this repo and is not available inside the Docker build context.
   <ItemGroup>
     <ProjectReference Include="..\..\..\Rich-Learning-Base\src\RichLearning.V2\RichLearning.V2.csproj" />
   </ItemGroup>
+  -->
 
 </Project>
