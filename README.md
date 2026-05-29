@@ -208,7 +208,7 @@ reported alongside the verification result, not as a sub-grade of it.
 | `NEXUS_NEO4J_PASSWORD` | _(empty)_ | Neo4j password |
 | `NEXUS_NEO4J_DATABASE` | `neo4j` | Database name |
 | `NEXUS_LEAN_PROJECT` | _(required)_ | Path to built `formal-conjectures` checkout |
-| `NEXUS_PARTS_NATIVE_DECIDE` | `warn` | `reject` to fail proofs using `decide +native` |
+| `NEXUS_PARTS_NATIVE_DECIDE` | `reject` | `reject` (default) fails proofs using `decide +native`; `warn` accepts but flags |
 | `GOOGLE_API_KEY` | _(optional)_ | Gemini hallucination gate |
 | `DASHSCOPE_API_KEY` | _(optional)_ | Qwen cloud gate |
 
