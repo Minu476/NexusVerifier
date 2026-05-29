@@ -1,42 +1,90 @@
 # DeepMind Nexus Challenge
 
-Graph-augmented formal proof verification pipeline, evaluated against the
-[DeepMind Formal Conjectures benchmark](https://github.com/google-deepmind/formal-conjectures)
-(arXiv:2605.22763, May 2026).
+> **NexusAgent** is a graph-augmented Lean 4 verification pipeline for evaluating, filtering, and indexing formally verified proof artifacts from the [DeepMind Formal Conjectures](https://github.com/google-deepmind/formal-conjectures) benchmark corpus (arXiv:2605.22763).
+
+## Architecture
+
+```
+Lean 4 Proof Parts
+        │
+        ▼
+  NexusAgent Pipeline
+        │
+   ┌────┼────────────┐
+   ▼    ▼            ▼
+Axiom  Holdout     Neo4j
+Check  Filter   Fossil Vault
+                     │
+                     ▼
+           Verified Benchmark Results
+```
+
+---
+
+## Research status
+
+This repository is an experimental research infrastructure project.
+
+The FC100 benchmark corpus contains previously solved, non-open mathematical results with existing Lean formalizations. NexusAgent evaluates verification policy, axiom provenance, holdout isolation, and reusable proof indexing over this corpus.
+
+**This repository does not claim novel proofs of open Erdős problems.**
+
+---
+
+## Why this matters
+
+Large language models can generate syntactically valid Lean proofs that rely on weakly trusted native compilation paths, or leak benchmark information through related declarations from the same problem file.
+
+NexusAgent addresses this by:
+
+- **Mechanically verifying** proof artifacts using `lake env lean` + `#print axioms`
+- **Filtering by axiom provenance** — rejecting proofs that depend on native compilation (`Lean.ofReduceBool`, `Lean.trustCompiler`)
+- **Enforcing declaration-family holdout isolation** — when one declaration from a problem file is held out, all sibling declarations from the same parent are automatically excluded, preventing leakage between related theorems
+- **Storing reusable verified subgoals** in a graph-backed knowledge base (the "fossil vault") for future retrieval and tactic reuse
+
+This is the infrastructure layer that separates rigorous formal verification from superficially plausible proof generation.
+
+---
 
 ## What this is
 
-This repository implements **NexusAgent** — a C#/.NET 10 pipeline that:
+NexusAgent is theorem-proving infrastructure. It provides:
 
-1. Takes a set of Lean 4 proof sketches (`VerifiedPart`s) and verifies them
-   rigorously using `lake env lean` + `#print axioms`.
-2. Filters proofs that depend on native compilation axioms (`Lean.ofReduceBool`,
-   `Lean.trustCompiler`) — indicating unverified `decide +native` tactics.
-3. Maintains a Neo4j knowledge graph of proved sub-goals (the "fossil vault") for
-   future reuse.
-4. Enforces a holdout protocol: when a benchmark target is excluded, all
-   sibling declarations from the same parent problem are automatically excluded
-   too (preventing data-leakage from the same file).
+| Capability | Description |
+|------------|-------------|
+| **Benchmark reproducibility** | Deterministic, containerised verification of Lean proof artifacts |
+| **Axiom filtering** | Mechanical rejection of proofs depending on native compilation |
+| **Proof provenance** | Every verified part is tagged with its full axiom closure |
+| **Holdout isolation** | Declaration-family holdout prevents cross-theorem leakage |
+| **Graph reuse** | Verified sub-goals indexed in Neo4j for future proof retrieval |
+
+---
 
 ## Benchmark results — FC100 (`ingest-parts` dry-run)
 
 Evaluated on 10 sampled parts from the
-[FC100SolvedSet1](https://github.com/google-deepmind/formal-conjectures) corpus
-(a set of 100 non-open problems with known sorry-free Lean 4 proofs):
+[FC100SolvedSet1](https://github.com/google-deepmind/formal-conjectures) corpus —
+100 non-open problems with known sorry-free Lean 4 proofs — under a
+**restricted axiom policy** (`native_decide` → reject):
 
-| Result | Count | Meaning |
+| Status | Count | Meaning |
 |--------|-------|---------|
-| **PASS [Weaker]** | 7 | Proof verified; axioms ⊆ {propext, Classical.choice, Quot.sound} |
-| FAIL | 3 | Rejected — proof uses native compilation (`decide +native`) |
-| EXCL | 0 (1 with holdout) | Excluded — sibling of a held-out benchmark target |
+| **Verified** | 7 | Lean proof accepted; axiom closure ⊆ {`propext`, `Classical.choice`, `Quot.sound`} |
+| **Rejected** | 3 | Proof depends on native compilation axioms (`decide +native`) |
+| **Excluded** | 0 (1 with holdout) | Removed by declaration-family holdout policy |
 
-Holdout test: excluding `Erdos1074.erdos_1074.variants.EHSNumbers_init` causes
-`erdos_1074.variants.mem_pillaiPrimes` (same parent `erdos1074`) to be
-automatically excluded — confirmed `6 passed, 3 rejected, 1 excluded`.
+**Holdout test:** Excluding `Erdos1074.erdos_1074.variants.EHSNumbers_init`
+automatically excludes `erdos_1074.variants.mem_pillaiPrimes` (same parent `erdos1074`)
+— confirmed `6 passed, 3 rejected, 1 excluded`.
+
+The pipeline enforces **declaration-family holdout isolation** to prevent leakage
+between related theorems originating from the same benchmark problem file.
 
 > **Note:** FC100SolvedSet1 is a corpus of *already-solved, non-open* problems.
 > These are known mathematical results; this pipeline verifies them mechanically
-> and filters by axiom strength. It does not claim novel mathematical discoveries.
+> and filters by axiom strength.
+
+---
 
 ## Stack
 
@@ -44,10 +92,21 @@ automatically excluded — confirmed `6 passed, 3 rejected, 1 excluded`.
 |-------|-----------|
 | Formal language | Lean 4 (v4.27.0) + Mathlib |
 | Proof verification | `lake env lean` + `#print axioms` |
-| Graph backend | Neo4j Enterprise (bolt) |
+| Graph backend | Neo4j 5 (Community via Docker; Enterprise locally) |
 | Agent pipeline | C# / .NET 10 |
 | Tests | 96 unit tests (xUnit) |
 | Container | Docker (multi-stage, ~1.6 GB) |
+
+### Reproducibility
+
+Verified with:
+- Lean `v4.27.0` (elan-managed, baked into Docker image)
+- Mathlib pinned via `lake-manifest.json` in `formal-conjectures/`
+- Neo4j 5.x
+- .NET 10
+- Docker Desktop 4.x (macOS arm64)
+
+---
 
 ## Quickstart (Docker)
 
@@ -57,11 +116,10 @@ automatically excluded — confirmed `6 passed, 3 rejected, 1 excluded`.
 # 1. Clone and build the formal-conjectures project (downloads ~1 GB Mathlib)
 git clone https://github.com/google-deepmind/formal-conjectures
 cd formal-conjectures
-lake update && lake build        # takes ~20 min on first run
+lake update && lake build        # ~20 min on first run
 cd ..
 
-# 2. Start Neo4j (or use an existing instance)
-#    The compose file starts a local Neo4j 5 with APOC
+# 2. Configure environment
 cp .env.example .env
 # Edit .env — set NEO4J_PASSWORD and optionally LLM API keys
 
@@ -72,9 +130,6 @@ docker build -t nexus-agent:latest .
 ### Run a dry-run verification
 
 ```bash
-# Replace the paths and credentials with your own values.
-# Use a snapshot database name (not your live DB) for safety.
-
 docker run --rm \
   -v /path/to/formal-conjectures:/formal-conjectures \
   -v "$(pwd)":/workspace:ro \
@@ -118,6 +173,25 @@ docker run --rm \
 
 Expected: `Done: 6 passed, 3 rejected, 1 excluded (holdout).`
 
+---
+
+## Verification policy
+
+The axiom policy is controlled by `NEXUS_PARTS_NATIVE_DECIDE`:
+
+| Value | Behaviour |
+|-------|-----------|
+| `reject` (default) | Parts using `native_decide` / `Lean.trustCompiler` are rejected outright |
+| `warn` | Parts are accepted but flagged in output |
+| `allow` | No filtering applied |
+
+A proof is considered **Verified (Weaker)** when its axiom closure is a subset of
+`{propext, Classical.choice, Quot.sound}` — the standard Lean 4 logical foundation.
+Any additional axioms (especially native compilation bridges) indicate reliance on
+unverified reduction paths and are rejected under the `reject` policy.
+
+---
+
 ## Environment variables
 
 | Variable | Default | Description |
@@ -128,8 +202,10 @@ Expected: `Done: 6 passed, 3 rejected, 1 excluded (holdout).`
 | `NEXUS_NEO4J_DATABASE` | `neo4j` | Database name |
 | `NEXUS_LEAN_PROJECT` | _(required)_ | Path to built `formal-conjectures` checkout |
 | `NEXUS_PARTS_NATIVE_DECIDE` | `warn` | `reject` to fail proofs using `decide +native` |
-| `GOOGLE_API_KEY` | _(optional)_ | For Gemini hallucination gate |
-| `DASHSCOPE_API_KEY` | _(optional)_ | For Qwen cloud gate |
+| `GOOGLE_API_KEY` | _(optional)_ | Gemini hallucination gate |
+| `DASHSCOPE_API_KEY` | _(optional)_ | Qwen cloud gate |
+
+---
 
 ## Building natively (.NET 10)
 
@@ -142,19 +218,34 @@ dotnet test NexusAgent.Tests/NexusAgent.Tests.csproj \
   --filter "Category!=Integration" -v q
 ```
 
+---
+
 ## Project layout
 
 ```
 NexusAgent/
-  NexusAgent.Core/         # Configuration, Neo4j client, LeanOracle, planning
-  NexusAgent.Cli/          # CLI entry point (ingest-parts, bench, …)
-  NexusAgent.VerifiedParts/ # AxiomChecker, VerifiedPartIngestor, holdout logic
+  NexusAgent.Core/            # Configuration, Neo4j client, LeanOracle, planning
+  NexusAgent.Cli/             # CLI entry point (ingest-parts, bench, …)
+  NexusAgent.VerifiedParts/   # AxiomChecker, VerifiedPartIngestor, holdout logic
   NexusAgent.MathlibIngestor/ # Mathlib tactic graph ingestor
-  NexusAgent.Tests/        # 96 unit tests (xUnit)
-formal-conjectures/        # Git submodule — google-deepmind/formal-conjectures
-data/                      # Benchmark input files
-docs/                      # Architecture notes
+  NexusAgent.Tests/           # 96 unit tests (xUnit)
+formal-conjectures/           # Git submodule — google-deepmind/formal-conjectures
+data/                         # Benchmark input files and results
+docs/                         # Architecture notes, Neo4j schema, Cypher queries
 ```
+
+---
+
+## Future work
+
+- **Graph-guided proof retrieval** — query the fossil vault for reusable sub-goals by goal-state similarity
+- **Tactic reuse** — surface verified tactic sequences from the knowledge graph during proof search
+- **Proof clustering** — group structurally similar proofs to detect common patterns
+- **Fossil-vault retrieval policies** — configurable strategies for querying verified sub-goals
+- **Automated theorem search** — use the hypergraph structure to identify candidate lemmas for new conjectures
+- **Expanded benchmark coverage** — evaluate over the full FC100 corpus and beyond
+
+---
 
 ## License
 
@@ -162,5 +253,3 @@ Apache 2.0. See [LICENSE](LICENSE).
 
 The `formal-conjectures/` directory is governed by its own license
 ([Apache 2.0](https://github.com/google-deepmind/formal-conjectures/blob/main/LICENSE)).
-
-  (vs. ~$1,600 equivalent at Gemini Pro rates)

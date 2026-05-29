@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "DeepMind Nexus Challenge"
+abstract: >
+  NexusAgent is a graph-augmented Lean 4 verification pipeline for evaluating,
+  filtering, and indexing formally verified proof artifacts from the DeepMind
+  Formal Conjectures benchmark corpus. It provides mechanical proof verification
+  via axiom-closure inspection, declaration-family holdout isolation to prevent
+  benchmark leakage, and a Neo4j-backed fossil vault for reusable sub-goal indexing.
+authors:
+  - family-names: Towfigh
+    given-names: Nasser
+date-released: "2026-05-29"
+license: Apache-2.0
+repository-code: "https://github.com/Minu476/DeepMind-Nexus-Challenge"
+keywords:
+  - lean4
+  - formal verification
+  - theorem proving
+  - mathlib
+  - neo4j
+  - benchmark
+  - axiom checking
+  - proof infrastructure
+references:
+  - type: article
+    title: "Formal Conjectures"
+    authors:
+      - name: "Google DeepMind"
+    url: "https://arxiv.org/abs/2605.22763"
+    year: 2026
