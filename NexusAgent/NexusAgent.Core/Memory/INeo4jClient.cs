@@ -1,5 +1,6 @@
 using NexusAgent.Core.Models;
 using NexusAgent.Core.Planning;
+using FossilAnalysis = NexusAgent.Core.Models.FossilAnalysis;
 
 namespace NexusAgent.Core.Memory;
 
@@ -14,8 +15,16 @@ public interface INeo4jClient
     Task UpsertFossilAsync(ProofFossil fossil, CancellationToken ct);
     Task<IReadOnlyList<FossilMatch>> NearestFossilsAsync(
         float[] queryVector, int topK, float minSimilarity, CancellationToken ct);
-    Task IncrementFossilUseCountAsync(string fossilId, CancellationToken ct);
+    /// <summary>
+    /// Returns tactic candidates from the pre-ingested GoalShape/APPLIES graph by
+    /// nearest-neighbor lookup over GoalShape vectors, then aggregating outgoing tactics.
+    /// </summary>
+    Task<IReadOnlyList<GraphTacticProposal>> ProposeTacticsFromGoalVectorAsync(
+        float[] queryVector, int neighborK, int topK, CancellationToken ct);
+    Task IncrementFossilUseCountAsync(string fossilId, string currentRunId, CancellationToken ct);
     Task<int> CountFossilsAsync(CancellationToken ct);
+    /// <summary>Phase 8: full fossil vault analysis for reporting.</summary>
+    Task<FossilAnalysis> FossilAnalysisAsync(CancellationToken ct);
 
     // ---- Landmark graph ----
     Task<ProofLandmark> UpsertLandmarkAsync(ProofLandmark landmark, CancellationToken ct);
@@ -25,6 +34,20 @@ public interface INeo4jClient
         string episodeId, CancellationToken ct);
     Task<IReadOnlyList<ProofLandmark>> NearbyLandmarksAsync(
         float[] queryVector, int topK, CancellationToken ct);
+    /// <summary>
+    /// Like <see cref="NearbyLandmarksAsync"/> but restricted to landmarks whose
+    /// <c>bestOutcome</c> is <c>'Solved'</c>. Used by Tier 0.5 to find replay targets.
+    /// </summary>
+    Task<IReadOnlyList<ProofLandmark>> NearbySolvedLandmarksAsync(
+        float[] queryVector, int topK, CancellationToken ct);
+    /// <summary>
+    /// Returns the ordered list of <c>tacticSequence</c> strings from each edge on the
+    /// shortest path (up to 10 hops, only <c>Progressed</c>/<c>Solved</c> edges) from
+    /// <paramref name="fromLandmarkId"/> to <paramref name="toLandmarkId"/>, or
+    /// <c>null</c> if no such path exists.
+    /// </summary>
+    Task<IReadOnlyList<string>?> ShortestSuccessfulPathAsync(
+        string fromLandmarkId, string toLandmarkId, CancellationToken ct);
 
     // ---- Compile cache ----
     Task<LeanResult?> GetCompileCacheAsync(string sketchHash, CancellationToken ct);
@@ -33,6 +56,21 @@ public interface INeo4jClient
     // ---- Problem registry ----
     Task UpsertProblemAsync(string id, string source, string leanFilePath, CancellationToken ct);
     Task MarkProblemSolvedAsync(string id, int episodesUsed, CancellationToken ct);
+    Task<bool> IsProblemSolvedAsync(string id, CancellationToken ct);
 
     Task EnsureSchemaAsync(CancellationToken ct);
+
+    // ---- ErdosHypergraph edge store ----
+
+    /// <summary>
+    /// Bulk-upsert a batch of hyperedges produced by <c>buildHypergraph</c>.
+    /// Uses MERGE on <c>id</c> so repeated calls are idempotent.
+    /// </summary>
+    Task UpsertHyperedgesAsync(IEnumerable<HyperedgeRecord> edges, CancellationToken ct);
+
+    /// <summary>
+    /// Return all stored hyperedges. Used by the Lean warm-start writer
+    /// to regenerate the JSONL cache without re-running <c>buildHypergraph</c>.
+    /// </summary>
+    Task<IReadOnlyList<HyperedgeRecord>> GetAllHyperedgesAsync(CancellationToken ct);
 }

@@ -18,6 +18,17 @@ CREATE CONSTRAINT math_problem_id IF NOT EXISTS
 CREATE CONSTRAINT lean_cache_hash IF NOT EXISTS
   FOR (c:LeanCompileCache) REQUIRE c.sketchHash IS UNIQUE;
 
+// ── ErdosHypergraph engine ──────────────────────────────────────
+// :HyperedgeRecord persists the AND-OR backward-chaining hyperedges
+// extracted from Lean proof terms by ErdosHypergraph.lean.
+// Written once after buildHypergraph; read by the C# agent via Cypher.
+// The Lean warm-start uses the JSONL file directly (no Bolt needed).
+CREATE CONSTRAINT hg_edge_id IF NOT EXISTS
+  FOR (e:HyperedgeRecord) REQUIRE e.id IS UNIQUE;
+
+CREATE INDEX hg_edge_output IF NOT EXISTS
+  FOR (e:HyperedgeRecord) ON (e.outputHash);
+
 // ── Vector indexes ──────────────────────────────────────────
 
 // Fossil vault: proven sub-goals indexed for similarity search
@@ -94,6 +105,21 @@ CREATE INDEX math_problem_source IF NOT EXISTS
 //   compileTimeMs: int,
 //   cachedAt: datetime
 // }
+
+// :HyperedgeRecord {
+//   id: string,            // SHA256(lemmaName + ":" + output)
+//   lemmaName: string,     // Lean 4 fully-qualified declaration name
+//   functionDisplay: string, // same as lemmaName (for display / Cypher readability)
+//   inputs: string[],      // Prop-kinded ∀ binder types (sub-goals)
+//   output: string,        // conclusion type (the goal this edge closes)
+//   outputHash: UInt64,    // hash(output) — matches Lean HashMap key
+//   inputCount: int,       // shorthand for inputs.length
+//   builtAt: datetime,     // when buildHypergraph produced this edge
+//   seedRun: string        // hex prefix of Lean run ID (for staleness check)
+// }
+// Relationship: (:HyperedgeRecord)-[:CLOSES]->(:HyperedgeRecord)
+//   meaning: this edge's conclusion matches another edge's input —
+//   the graph of edge-chains the engine traverses at depth-2.
 
 // ── Relationship reference ──────────────────────────────────
 

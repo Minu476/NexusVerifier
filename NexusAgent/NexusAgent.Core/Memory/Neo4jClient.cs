@@ -51,6 +51,8 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
                     f.sorryCountAfter = $sorryCountAfter,
                     f.provedAt = datetime($provedAt),
                     f.sourceProblems = $sourceProblems,
+                    f.compilationVerified = coalesce(f.compilationVerified, $compilationVerified),
+                    f.runId = coalesce(f.runId, $runId),
                     f.useCount = coalesce(f.useCount, 0)
                 """,
                 new
@@ -64,6 +66,8 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
                     sorryCountAfter = fossil.SorryCountAfter,
                     provedAt = fossil.ProvedAt.ToString("o"),
                     sourceProblems = fossil.SourceProblems,
+                    compilationVerified = fossil.CompilationVerified,
+                    runId = fossil.RunId ?? "",
                 });
             return 0;
         });
@@ -80,6 +84,7 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
                 CALL db.index.vector.queryNodes('proofFossils', $topK, $vec)
                 YIELD node, score
                 WHERE score >= $minScore
+                  AND NOT coalesce(node.quarantined, false)
                 RETURN node.id              AS id,
                        node.subgoalText     AS subgoalText,
                        node.tacticBlock     AS tacticBlock,
@@ -89,6 +94,7 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
                        node.sorryCountAfter  AS sorryCountAfter,
                        toString(node.provedAt) AS provedAt,
                        node.sourceProblems  AS sourceProblems,
+                      coalesce(node.compilationVerified, false) AS compilationVerified,
                        coalesce(node.useCount, 0) AS useCount,
                        score                AS similarity
                 """,
@@ -115,6 +121,7 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
                     ProvedAt = DateTime.Parse(rec["provedAt"].As<string>()),
                     SourceProblems = rec["sourceProblems"].As<List<object>>()
                         .Select(x => x.ToString() ?? "").ToArray(),
+                    CompilationVerified = rec["compilationVerified"].As<bool>(),
                     UseCount = rec["useCount"].As<int>(),
                 };
                 results.Add(new FossilMatch(fossil, (float)rec["similarity"].As<double>()));
@@ -123,14 +130,95 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
-    public async Task IncrementFossilUseCountAsync(string fossilId, CancellationToken ct)
+    public async Task<IReadOnlyList<GraphTacticProposal>> ProposeTacticsFromGoalVectorAsync(
+        float[] queryVector, int neighborK, int topK, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        try
+        {
+            return await session.ExecuteReadAsync(async tx =>
+            {
+                var cursor = await tx.RunAsync(
+                    """
+                    CALL db.index.vector.queryNodes('goalshape_state_vec_idx', $neighborK, $vec)
+                    YIELD node, score
+                    MATCH (node)-[r:APPLIES]->()
+                    MATCH (t:Tactic {id: r.tactic_id})
+                    WITH t.id AS tacticId,
+                         t.text AS tacticText,
+                         max(score) AS nearestGoalSimilarity,
+                         sum(coalesce(r.success_sum, 0.0)) AS succ,
+                         sum(coalesce(r.count, 0.0)) AS n
+                    WHERE n > 0
+                    RETURN tacticId,
+                           tacticText,
+                           nearestGoalSimilarity,
+                           (succ / n) AS historicalSuccessRate,
+                           toInteger(n) AS supportCount
+                    ORDER BY nearestGoalSimilarity DESC, supportCount DESC
+                    LIMIT $topK
+                    """,
+                    new
+                    {
+                        neighborK,
+                        topK,
+                        vec = queryVector.Select(f => (double)f).ToArray(),
+                    });
+
+                var results = new List<GraphTacticProposal>();
+                await foreach (var rec in cursor)
+                {
+                    var nearest = (float)rec["nearestGoalSimilarity"].As<double>();
+                    var success = (float)rec["historicalSuccessRate"].As<double>();
+                    var support = rec["supportCount"].As<int>();
+
+                    // Conservative rank mixing retrieval confidence and empirical tactic reliability.
+                    var rank = 0.65f * nearest
+                        + 0.25f * success
+                        + 0.10f * MathF.Min(1f, MathF.Log10(Math.Max(1f, support) + 1f));
+
+                    results.Add(new GraphTacticProposal
+                    {
+                        TacticId = rec["tacticId"].As<string>(),
+                        TacticText = rec["tacticText"].As<string>(),
+                        NearestGoalSimilarity = nearest,
+                        HistoricalSuccessRate = success,
+                        SupportCount = support,
+                        RankScore = rank,
+                    });
+                }
+
+                return (IReadOnlyList<GraphTacticProposal>)results
+                    .OrderByDescending(x => x.RankScore)
+                    .Take(topK)
+                    .ToArray();
+            });
+        }
+        catch (ClientException ex)
+        {
+            _log.LogDebug(
+                ex,
+                "Graph-native proposer unavailable (missing GoalShape graph/vector index): {Message}",
+                ex.Message);
+            return Array.Empty<GraphTacticProposal>();
+        }
+    }
+
+    public async Task IncrementFossilUseCountAsync(string fossilId, string currentRunId, CancellationToken ct)
     {
         await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
         await session.ExecuteWriteAsync(async tx =>
         {
             await tx.RunAsync(
-                "MATCH (f:ProofFossil {id: $id}) SET f.useCount = coalesce(f.useCount, 0) + 1",
-                new { id = fossilId });
+                """
+                MATCH (f:ProofFossil {id: $id})
+                SET f.useCount = coalesce(f.useCount, 0) + 1,
+                    f.crossRun = CASE
+                        WHEN f.runId IS NULL OR f.runId <> $runId THEN true
+                        ELSE coalesce(f.crossRun, false)
+                    END
+                """,
+                new { id = fossilId, runId = currentRunId });
             return 0;
         });
     }
@@ -144,6 +232,98 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
             var rec = await cursor.SingleAsync();
             return rec["n"].As<int>();
         });
+    }
+
+    public async Task<FossilAnalysis> FossilAnalysisAsync(CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+
+        // --- Total counts ---
+        int totalFossils = 0, totalLandmarks = 0, solvedProblems = 0, crossRunHits = 0;
+        var topFossils = new List<FossilSummary>();
+        var domainDist = new Dictionary<string, int>();
+        var chains = new Dictionary<string, int>();
+
+        await session.ExecuteReadAsync(async tx =>
+        {
+            // Counts
+            var countCursor = await tx.RunAsync(
+                """
+                MATCH (f:ProofFossil) WITH count(f) AS fossils,
+                      sum(CASE WHEN f.crossRun = true THEN 1 ELSE 0 END) AS crossRun
+                OPTIONAL MATCH (l:ProofLandmark) WITH fossils, crossRun, count(l) AS landmarks
+                OPTIONAL MATCH (p:MathProblem {status: 'Solved'}) 
+                RETURN fossils, landmarks, crossRun, count(p) AS solved
+                """);
+            var countRec = await countCursor.SingleAsync();
+            totalFossils = countRec["fossils"].As<int>();
+            totalLandmarks = countRec["landmarks"].As<int>();
+            solvedProblems = countRec["solved"].As<int>();
+            crossRunHits = countRec["crossRun"].As<int>();
+
+            // Top fossils by use count
+            var topCursor = await tx.RunAsync(
+                """
+                MATCH (f:ProofFossil)
+                RETURN f.id              AS id,
+                       f.domainTag       AS domain,
+                       coalesce(f.useCount, 0)         AS uses,
+                       (f.sorryCountBefore - f.sorryCountAfter) AS reduction,
+                       left(f.subgoalText, 120)        AS snippet,
+                       left(f.tacticBlock, 80)         AS tactic,
+                       f.sourceProblems  AS sources
+                ORDER BY uses DESC, reduction DESC
+                LIMIT 10
+                """);
+            await foreach (var rec in topCursor)
+            {
+                topFossils.Add(new FossilSummary(
+                    Id:             rec["id"].As<string>(),
+                    DomainTag:      rec["domain"].As<string>(),
+                    UseCount:       rec["uses"].As<int>(),
+                    SorryReduction: rec["reduction"].As<int>(),
+                    SubgoalSnippet: rec["snippet"].As<string>(),
+                    TacticSnippet:  rec["tactic"].As<string>(),
+                    SourceProblems: rec["sources"].As<List<object>>()
+                                        .Select(x => x.ToString() ?? "").ToArray()));
+            }
+
+            // Domain distribution
+            var domCursor = await tx.RunAsync(
+                """
+                MATCH (f:ProofFossil)
+                RETURN f.domainTag AS domain, count(f) AS n
+                ORDER BY n DESC
+                """);
+            await foreach (var rec in domCursor)
+                domainDist[rec["domain"].As<string>()] = rec["n"].As<int>();
+
+            // PRECEDES chain depths (walk up to depth 10)
+            var chainCursor = await tx.RunAsync(
+                """
+                MATCH path = (root:ProofFossil)-[:PRECEDES*1..10]->(leaf:ProofFossil)
+                WHERE NOT ()-[:PRECEDES]->(root)
+                WITH root.id AS rootId, max(length(path)) AS depth
+                ORDER BY depth DESC
+                LIMIT 5
+                RETURN rootId, depth
+                """);
+            await foreach (var rec in chainCursor)
+                chains[rec["rootId"].As<string>()] = rec["depth"].As<int>();
+
+            return 0;
+        });
+
+        return new FossilAnalysis
+        {
+            TotalFossils        = totalFossils,
+            TotalLandmarks      = totalLandmarks,
+            SolvedProblems      = solvedProblems,
+            CrossRunHits        = crossRunHits,
+            TopFossils          = topFossils,
+            DomainDistribution  = domainDist,
+            DeepestPrecedesChains = chains,
+        };
     }
 
     // ---- Landmark graph ----
@@ -249,6 +429,77 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
+    public async Task<IReadOnlyList<ProofLandmark>> NearbySolvedLandmarksAsync(
+        float[] queryVector, int topK, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                """
+                CALL db.index.vector.queryNodes('proofLandmarks', $topK, $vec)
+                YIELD node, score
+                WHERE node.bestOutcome = 'Solved'
+                RETURN node.id           AS id,
+                       node.stateVector  AS vec,
+                       node.sorryCount   AS sorry,
+                       node.visitCount   AS visits,
+                       node.deadEndCount AS deads,
+                       node.bestOutcome  AS outcome,
+                       node.problemId    AS problemId,
+                       score             AS similarity
+                """,
+                new { topK, vec = queryVector.Select(f => (double)f).ToArray() });
+
+            var results = new List<ProofLandmark>();
+            await foreach (var rec in cursor)
+            {
+                results.Add(new ProofLandmark
+                {
+                    Id = rec["id"].As<string>(),
+                    StateVector = rec["vec"].As<List<object>>().Select(x => Convert.ToSingle(x)).ToArray(),
+                    SorryCount = rec["sorry"].As<int>(),
+                    VisitCount = rec["visits"].As<int>(),
+                    DeadEndCount = rec["deads"].As<int>(),
+                    BestOutcome = Enum.Parse<TransitionOutcome>(rec["outcome"].As<string>()),
+                    ProblemId = rec["problemId"].As<string>(),
+                });
+            }
+            return results;
+        });
+    }
+
+    public async Task<IReadOnlyList<string>?> ShortestSuccessfulPathAsync(
+        string fromLandmarkId, string toLandmarkId, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            // shortestPath finds the BFS-shortest path; WHERE ALL(...) then filters
+            // to only accept paths whose every edge has a non-failing outcome.
+            // Bounds are literals (Neo4j does not support parameterised range bounds).
+            var cursor = await tx.RunAsync(
+                """
+                MATCH path = shortestPath(
+                  (a:ProofLandmark {id: $from})-[:TRANSITION*1..10]->(b:ProofLandmark {id: $to})
+                )
+                WHERE ALL(r IN relationships(path) WHERE r.outcome IN ['Progressed', 'Solved'])
+                RETURN [r IN relationships(path) | r.tacticSequence] AS tactics
+                LIMIT 1
+                """,
+                new { from = fromLandmarkId, to = toLandmarkId });
+
+            IReadOnlyList<string>? result = null;
+            await foreach (var rec in cursor)
+            {
+                result = rec["tactics"].As<List<object>>()
+                    .Select(x => x?.ToString() ?? string.Empty)
+                    .ToArray();
+            }
+            return result;
+        });
+    }
+
     // ---- Compile cache ----
 
     public async Task<LeanResult?> GetCompileCacheAsync(string sketchHash, CancellationToken ct)
@@ -351,7 +602,109 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
+    public async Task<bool> IsProblemSolvedAsync(string id, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                "MATCH (p:MathProblem {id: $id, status: 'Solved'}) RETURN count(p) AS n",
+                new { id });
+            var record = await cursor.SingleAsync();
+            return record["n"].As<int>() > 0;
+        });
+    }
+
     public async ValueTask DisposeAsync() => await _driver.DisposeAsync();
+
+    // ---- ErdosHypergraph edge store ----------------------------------------
+
+    public async Task UpsertHyperedgesAsync(IEnumerable<HyperedgeRecord> edges, CancellationToken ct)
+    {
+        // Batch into chunks of 200 to avoid huge parameter payloads.
+        const int batchSize = 200;
+        var batch = new List<HyperedgeRecord>(batchSize);
+        foreach (var edge in edges)
+        {
+            batch.Add(edge);
+            if (batch.Count < batchSize) continue;
+            await FlushBatchAsync(batch, ct);
+            batch.Clear();
+        }
+        if (batch.Count > 0) await FlushBatchAsync(batch, ct);
+
+        async Task FlushBatchAsync(List<HyperedgeRecord> b, CancellationToken token)
+        {
+            await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+            await session.ExecuteWriteAsync(async tx =>
+            {
+                await tx.RunAsync(
+                    """
+                    UNWIND $rows AS row
+                    MERGE (e:HyperedgeRecord {id: row.id})
+                    SET e.lemmaName       = row.lemmaName,
+                        e.functionDisplay = row.lemmaName,
+                        e.inputs          = row.inputs,
+                        e.output          = row.output,
+                        e.outputHash      = row.outputHash,
+                        e.inputCount      = row.inputCount,
+                        e.builtAt         = datetime(row.builtAt),
+                        e.seedRun         = row.seedRun
+                    """,
+                    new
+                    {
+                        rows = b.Select(e => new
+                        {
+                            id          = e.Id,
+                            lemmaName   = e.LemmaName,
+                            inputs      = e.Inputs,
+                            output      = e.Output,
+                            outputHash  = (long)(e.OutputHash),   // Neo4j has no UInt64; cast to signed
+                            inputCount  = e.Inputs.Length,
+                            builtAt     = e.BuiltAt.ToString("o"),
+                            seedRun     = e.SeedRun,
+                        }).ToArray()
+                    });
+                return 0;
+            });
+        }
+    }
+
+    public async Task<IReadOnlyList<HyperedgeRecord>> GetAllHyperedgesAsync(CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                """
+                MATCH (e:HyperedgeRecord)
+                RETURN e.id          AS id,
+                       e.lemmaName   AS lemmaName,
+                       e.inputs      AS inputs,
+                       e.output      AS output,
+                       e.outputHash  AS outputHash,
+                       toString(e.builtAt) AS builtAt,
+                       e.seedRun     AS seedRun
+                """);
+
+            var results = new List<HyperedgeRecord>();
+            await foreach (var rec in cursor)
+            {
+                results.Add(new HyperedgeRecord
+                {
+                    Id         = rec["id"].As<string>(),
+                    LemmaName  = rec["lemmaName"].As<string>(),
+                    Inputs     = rec["inputs"].As<List<object>>()
+                                     .Select(x => x.ToString() ?? "").ToArray(),
+                    Output     = rec["output"].As<string>(),
+                    OutputHash = (ulong)rec["outputHash"].As<long>(),
+                    BuiltAt    = DateTime.Parse(rec["builtAt"].As<string>()),
+                    SeedRun    = rec["seedRun"].As<string>(),
+                });
+            }
+            return results;
+        });
+    }
 
     private static readonly string[] SchemaStatements =
     [
@@ -376,5 +729,7 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         }}
         """,
         "CREATE INDEX proof_fossil_domain IF NOT EXISTS FOR (f:ProofFossil) ON (f.domainTag)",
+        "CREATE CONSTRAINT hg_edge_id IF NOT EXISTS FOR (e:HyperedgeRecord) REQUIRE e.id IS UNIQUE",
+        "CREATE INDEX hg_edge_output IF NOT EXISTS FOR (e:HyperedgeRecord) ON (e.outputHash)",
     ];
 }
