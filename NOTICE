@@ -1,0 +1,31 @@
+DeepMind Nexus Challenge
+Copyright 2026 Nasser Towfigh
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+---
+
+This project uses the Formal Conjectures benchmark corpus:
+
+    Formal Conjectures: An Open and Evolving Benchmark for Verified
+    Discovery in Mathematics (arXiv:2605.13171)
+    Copyright 2025 The Formal Conjectures Authors
+    Licensed under the Apache License, Version 2.0
+    https://github.com/google-deepmind/formal-conjectures
+
+The Lean 4 source files under formal-conjectures/ retain their original
+copyright headers and are governed by the Formal Conjectures project license.
+See formal-conjectures/LICENSE for details.
+
+This project is independent and is not affiliated with, endorsed by,
+or derived from Google DeepMind or any of its products.
