@@ -32,7 +32,7 @@ public sealed class NexusOrchestratorTests
         var config = Options.Create(new NexusConfig { TacticVocabPath = "does_not_exist.json" });
         var encoder = new ProofStateEncoder(config, NullLogger<ProofStateEncoder>.Instance);
 
-        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_QwenLocal);
+        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
         _flash.SetupGet(c => c.Tier).Returns(LlmTier.Tier2_DeepSeekFlash);
         _pro.SetupGet(c => c.Tier).Returns(LlmTier.Tier3_PremiumCloud);
 
@@ -40,6 +40,10 @@ public sealed class NexusOrchestratorTests
               .ReturnsAsync(Array.Empty<FossilMatch>() as IReadOnlyList<FossilMatch>);
         _neo4j.Setup(n => n.NearbyLandmarksAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(Array.Empty<ProofLandmark>() as IReadOnlyList<ProofLandmark>);
+        _neo4j.Setup(n => n.NearbySolvedLandmarksAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(Array.Empty<ProofLandmark>() as IReadOnlyList<ProofLandmark>);
+        _neo4j.Setup(n => n.ShortestSuccessfulPathAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync((IReadOnlyList<string>?)null);
         _neo4j.Setup(n => n.UpsertLandmarkAsync(It.IsAny<ProofLandmark>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync((ProofLandmark lm, CancellationToken _) => lm);
         _neo4j.Setup(n => n.RecordTransitionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TransitionOutcome>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -61,11 +65,16 @@ public sealed class NexusOrchestratorTests
         var promptBuilder = new PromptBuilder();
 
         var subagent = new NexusProverSubagent(
-            _lean.Object, _router, fossilizer, gate, cartographer, encoder,
+            _lean.Object, _router, fossilizer, gate, cartographer, _neo4j.Object, encoder,
             promptBuilder, NullLogger<NexusProverSubagent>.Instance);
+        var planner = new BestFirstGraphPlanner(
+            _neo4j.Object,
+            _lean.Object,
+            encoder,
+            NullLogger<BestFirstGraphPlanner>.Instance);
 
         _orchestrator = new NexusOrchestrator(
-            subagent, _lean.Object, _neo4j.Object, _router,
+            subagent, planner, _lean.Object, _neo4j.Object, _router,
             NullLogger<NexusOrchestrator>.Instance);
     }
 
@@ -152,17 +161,17 @@ public sealed class NexusOrchestratorTests
              .ReturnsAsync(new LlmResponse
              {
                  Content = "```lean\ntheorem t := by sorry\n```",
-                 Tier = LlmTier.Tier1_QwenLocal,
+                 Tier = LlmTier.Tier1_Cheap,
                  InputTokens = 10, OutputTokens = 5,
                  CachedInputTokens = 0,
                  EstimatedCostUsd = 0m,
                  Latency = TimeSpan.FromMilliseconds(50),
              });
 
-        var result = await _orchestrator.SolveAsync(MakeProblem(), QuickConfig(maxEpisodes: 2), CancellationToken.None);
+        var result = await _orchestrator.SolveAsync(MakeProblem(), QuickConfig(maxEpisodes: 1), CancellationToken.None);
 
         Assert.Equal(ProofOutcome.EpisodeBudgetExhausted, result.Outcome);
-        Assert.Equal(2, result.EpisodesUsed);
+        Assert.Equal(1, result.EpisodesUsed);
     }
 
     [Fact]

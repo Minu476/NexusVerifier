@@ -141,18 +141,41 @@ public sealed partial class LeanOracle : ILeanOracle
         var pendingGoals = new List<string>();
         var sorryCount = 0;
 
-        foreach (var line in combined.Split('\n'))
+        // Parse diagnostics as multi-line blocks. A Lean 4 error looks like:
+        //   problem.lean:42:5: error: type mismatch
+        //     h.left
+        //   has type
+        //     P x : Prop
+        //   but is expected to have type
+        //     Q x : Prop
+        // Capturing only the header line discards the context the LLM needs to fix
+        // the proof. We collect all continuation lines until the next diagnostic.
+        var lines = combined.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
         {
+            var line = lines[i];
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             if (ErrorPattern().IsMatch(line))
-                errors.Add(line.Trim());
+            {
+                bool isUnsolvedGoals = UnsolvedGoalsPattern().IsMatch(line);
+                var blockLines = new List<string> { line.Trim() };
+                while (i + 1 < lines.Length && !IsDiagnosticHeader(lines[i + 1]))
+                {
+                    i++;
+                    if (!string.IsNullOrWhiteSpace(lines[i]))
+                        blockLines.Add(lines[i]);
+                }
+                errors.Add(string.Join('\n', blockLines));
+                // For "unsolved goals" errors, expose the raw goal text (⊢ …) to the
+                // encoder and prompt's pending-goals section.
+                if (isUnsolvedGoals && blockLines.Count > 1)
+                    pendingGoals.Add(string.Join('\n', blockLines.Skip(1)));
+            }
             else if (SorryPattern().IsMatch(line))
                 sorryCount++;
             else if (WarningPattern().IsMatch(line))
                 warnings.Add(line.Trim());
-            else if (UnsolvedGoalsPattern().IsMatch(line))
-                pendingGoals.Add(line.Trim());
         }
 
         // Lean prints "declaration uses 'sorry'" — that's a warning, not an error.
@@ -195,4 +218,8 @@ public sealed partial class LeanOracle : ILeanOracle
 
     [GeneratedRegex(@"unsolved goals", RegexOptions.IgnoreCase)]
     private static partial Regex UnsolvedGoalsPattern();
+
+    /// <summary>Returns true if <paramref name="line"/> starts a new Lean diagnostic block.</summary>
+    private static bool IsDiagnosticHeader(string line) =>
+        ErrorPattern().IsMatch(line) || WarningPattern().IsMatch(line) || SorryPattern().IsMatch(line);
 }

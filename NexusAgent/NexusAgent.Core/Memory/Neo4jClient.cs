@@ -23,14 +23,16 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
 
     public async Task EnsureSchemaAsync(CancellationToken ct)
     {
-        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
-        await session.ExecuteWriteAsync(async tx =>
+        // DDL statements (CREATE CONSTRAINT / CREATE INDEX) must run in
+        // auto-commit (implicit) transactions, not inside an explicit write
+        // transaction — required for Neo4j 5.x compatibility.
+        foreach (var stmt in SchemaStatements)
         {
-            foreach (var stmt in SchemaStatements)
-                await tx.RunAsync(stmt);
-            return 0;
-        });
-        _log.LogInformation("Neo4j schema ensured");
+            await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+            var cursor = await session.RunAsync(stmt);
+            await cursor.ConsumeAsync();
+        }
+        _log.LogInformation("Neo4j schema ensured ({Count} statements)", SchemaStatements.Length);
     }
 
     // ---- Fossil vault ----
@@ -706,6 +708,65 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
+    public async Task UpsertScanRunAsync(HgScanRun run, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        await session.ExecuteWriteAsync(async tx =>
+        {
+            await tx.RunAsync(
+                """
+                MERGE (r:HgScanRun {id: $runId})
+                SET r.runAt           = datetime($runAt),
+                    r.elapsedSeconds  = $elapsedSeconds,
+                    r.shards          = $shards,
+                    r.timeoutSeconds  = $timeoutSeconds,
+                    r.totalGoals      = $totalGoals,
+                    r.provedCount     = $provedCount,
+                    r.genuineCount    = $genuineCount,
+                    r.selfCiteCount   = $selfCiteCount,
+                    r.gapCount        = $gapCount,
+                    r.discardedShards = $discardedShards,
+                    r.isHoldoutRun    = $isHoldoutRun
+                WITH r
+                UNWIND $goals AS goal
+                MERGE (g:HgGoalResult {id: goal.id})
+                SET g.runId          = $runId,
+                    g.goalName       = goal.goalName,
+                    g.proved         = goal.proved,
+                    g.isSelfCitation = goal.isSelfCitation,
+                    g.survivesHoldout = goal.survivesHoldout,
+                    g.steps          = goal.steps
+                WITH r, g
+                MERGE (r)-[:HAS_RESULT]->(g)
+                """,
+                new
+                {
+                    runId           = run.Id,
+                    runAt           = run.RunAt.ToString("o"),
+                    elapsedSeconds  = run.ElapsedSeconds,
+                    shards          = run.Shards,
+                    timeoutSeconds  = run.TimeoutSeconds,
+                    totalGoals      = run.TotalGoals,
+                    provedCount     = run.ProvedCount,
+                    genuineCount    = run.GenuineCount,
+                    selfCiteCount   = run.SelfCiteCount,
+                    gapCount        = run.GapCount,
+                    discardedShards = run.DiscardedShards,
+                    isHoldoutRun    = run.IsHoldoutRun,
+                    goals           = run.Goals.Select(g => new
+                    {
+                        id              = $"{run.Id}:{g.Name}",
+                        goalName        = g.Name,
+                        proved          = g.Proved,
+                        isSelfCitation  = g.IsSelfCitation,
+                        survivesHoldout = run.IsHoldoutRun && g.Proved,
+                        steps           = g.Steps.ToArray(),
+                    }).ToArray()
+                });
+            return 0;
+        });
+    }
+
     private static readonly string[] SchemaStatements =
     [
         "CREATE CONSTRAINT proof_fossil_id IF NOT EXISTS FOR (f:ProofFossil) REQUIRE f.id IS UNIQUE",
@@ -731,5 +792,14 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         "CREATE INDEX proof_fossil_domain IF NOT EXISTS FOR (f:ProofFossil) ON (f.domainTag)",
         "CREATE CONSTRAINT hg_edge_id IF NOT EXISTS FOR (e:HyperedgeRecord) REQUIRE e.id IS UNIQUE",
         "CREATE INDEX hg_edge_output IF NOT EXISTS FOR (e:HyperedgeRecord) ON (e.outputHash)",
+        // Scan run log
+        "CREATE CONSTRAINT hg_scan_run_id IF NOT EXISTS FOR (r:HgScanRun) REQUIRE r.id IS UNIQUE",
+        "CREATE INDEX hg_scan_run_at IF NOT EXISTS FOR (r:HgScanRun) ON (r.runAt)",
+        "CREATE CONSTRAINT hg_goal_result_id IF NOT EXISTS FOR (g:HgGoalResult) REQUIRE g.id IS UNIQUE",
+        "CREATE INDEX hg_goal_result_goal IF NOT EXISTS FOR (g:HgGoalResult) ON (g.goalName)",
+        "CREATE INDEX hg_goal_result_proved IF NOT EXISTS FOR (g:HgGoalResult) ON (g.proved)",
+        "CREATE INDEX hg_goal_result_selfcite IF NOT EXISTS FOR (g:HgGoalResult) ON (g.isSelfCitation)",
+        "CREATE INDEX hg_goal_result_holdout IF NOT EXISTS FOR (g:HgGoalResult) ON (g.survivesHoldout)",
+        "CREATE INDEX hg_scan_run_holdout IF NOT EXISTS FOR (r:HgScanRun) ON (r.isHoldoutRun)",
     ];
 }

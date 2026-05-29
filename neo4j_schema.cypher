@@ -22,7 +22,7 @@ CREATE CONSTRAINT lean_cache_hash IF NOT EXISTS
 // :HyperedgeRecord persists the AND-OR backward-chaining hyperedges
 // extracted from Lean proof terms by ErdosHypergraph.lean.
 // Written once after buildHypergraph; read by the C# agent via Cypher.
-// The Lean warm-start uses the JSONL file directly (no Bolt needed).
+// Lean warm-start reads hg_cache.hge (tab-separated); hg_cache.jsonl feeds this ingestor.
 CREATE CONSTRAINT hg_edge_id IF NOT EXISTS
   FOR (e:HyperedgeRecord) REQUIRE e.id IS UNIQUE;
 

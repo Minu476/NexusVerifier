@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mathlib InfoTree Transition Row",
+  "type": "object",
+  "required": [
+    "module_source",
+    "theorem_source",
+    "goal_before",
+    "tactic_raw",
+    "goals_after"
+  ],
+  "properties": {
+    "module_source": { "type": "string" },
+    "theorem_source": { "type": "string" },
+    "theorem_namespace": { "type": "string" },
+    "theorem_statement": { "type": "string" },
+    "goal_before": { "type": "string" },
+    "tactic_raw": { "type": "string" },
+    "goals_after": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "premises": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "success": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

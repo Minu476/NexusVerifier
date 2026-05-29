@@ -1,0 +1,82 @@
+[
+  {
+    "problemNumber": 48,
+    "amsCode": 11,
+    "domain": "number_theory",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Pure NT, single sorry, tractable for fossil reuse from OEIS phase"
+  },
+  {
+    "problemNumber": 109,
+    "amsCode": 5,
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combinatorics (upper density), single sorry, aligns with OEIS fossil domain"
+  },
+  {
+    "problemNumber": 139,
+    "amsCode": "5 11",
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combo + NT crossover, single sorry, k>1 structure common in fossil bank"
+  },
+  {
+    "problemNumber": 194,
+    "amsCode": 5,
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combinatorics, single sorry"
+  },
+  {
+    "problemNumber": 204,
+    "amsCode": 5,
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combinatorics, single sorry"
+  },
+  {
+    "problemNumber": 219,
+    "amsCode": 5,
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combinatorics, single sorry, well-known Ramsey-type result"
+  },
+  {
+    "problemNumber": 228,
+    "amsCode": 5,
+    "domain": "combinatorics",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Combinatorics, single sorry"
+  },
+  {
+    "problemNumber": 239,
+    "amsCode": 11,
+    "domain": "number_theory",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Number theory, single sorry"
+  },
+  {
+    "problemNumber": 248,
+    "amsCode": 11,
+    "domain": "number_theory",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Number theory, single sorry"
+  },
+  {
+    "problemNumber": 250,
+    "amsCode": 11,
+    "domain": "number_theory",
+    "sorryCount": 1,
+    "category": "research solved",
+    "rationale": "Number theory, single sorry"
+  }
+]

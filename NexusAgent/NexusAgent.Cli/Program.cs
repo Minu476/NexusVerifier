@@ -148,6 +148,17 @@ builder.Services.AddSingleton<TieredLlmRouter>();
 // --- Storage and infra ---
 builder.Services.AddSingleton<INeo4jClient, Neo4jClient>();
 builder.Services.AddSingleton<HyperedgeIngestor>();
+builder.Services.AddSingleton<HgParallelSolver>(sp =>
+{
+    var cfg = sp.GetRequiredService<IOptions<NexusConfig>>().Value;
+    var leanProject = Path.GetFullPath(
+        string.IsNullOrWhiteSpace(cfg.LeanProjectPath)
+            ? Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "formal-conjectures")
+            : cfg.LeanProjectPath);
+    var engineFile = Path.Combine(leanProject, "_nexus_tmp", "ErdosHypergraph.lean");
+    return new HgParallelSolver(leanProject, engineFile,
+        sp.GetRequiredService<ILogger<HgParallelSolver>>());
+});
 
 // --- Pipeline ---
 builder.Services.AddSingleton<ProofStateEncoder>();
@@ -186,6 +197,7 @@ try
         "stats"     => await RunStatsAsync(host),
         "probe"     => await RunProbeAsync(host),
         "ingest-hg" => await RunIngestHgAsync(host, rest),
+        "scan-hg"   => await RunScanHgAsync(host, rest),
         _           => UnknownCommand(cmd),
     };
 }
@@ -200,6 +212,210 @@ finally
 }
 return exitCode;
 
+static async Task<int> RunScanHgAsync(IHost host, string[] args)
+{
+    // Runs ErdosHypergraph.lean FC100 search across N parallel shard processes.
+    // Each shard self-certifies (6 neg controls) before emitting PROVED results.
+    // The aggregator hard-gates: shards without "control":"ok" are discarded.
+    //
+    // Usage:  nexus scan-hg [--shards N] [--timeout-minutes M] [--holdout]
+    //   N default: auto (min(cpu_count, ram/1.5GB, 8))
+    //   M default: 5 minutes per shard process
+    //   --holdout: pass NEXUS_HG_HOLDOUT=1 to Lean; proved results are stored
+    //              as survivesHoldout=true in Neo4j (authoritative genuine signal)
+    var shards  = int.TryParse(GetFlag(args, "--shards"), out var ns) ? ns : 8;
+    var minutes = int.TryParse(GetFlag(args, "--timeout-minutes"), out var nm) ? nm : 5;
+    var holdout = args.Contains("--holdout");
+
+    var solver = host.Services.GetRequiredService<HgParallelSolver>();
+    var log    = host.Services.GetRequiredService<ILogger<Program>>();
+
+    // FC100 goal names — exact order must match fc100Decls in ErdosHypergraph.lean.
+    // C# passes 0-based indices to each shard; Lean looks up by position.
+    var fc100Goals = new[]
+    {
+        /* 00 */ "WrittenOnTheWallII.Test.petersen_size",
+        /* 01 */ "WrittenOnTheWallII.GraphConjecture13.conjecture13",
+        /* 02 */ "OpenQuantumProblem35.ame_3_exists",
+        /* 03 */ "LychrelNumbers.eventually_palindrome_base10",
+        /* 04 */ "Erdos42.example_maximal_sidon",
+        /* 05 */ "Mathoverflow75792.Reachable.complexity",
+        /* 06 */ "OeisA280831.hasSquareCondition_0",
+        /* 07 */ "Erdos141.first_three_odd_primes",
+        /* 08 */ "WrittenOnTheWallII.GraphConjecture33.conjecture33",
+        /* 09 */ "MonochromaticQuantumGraph.eqSystem4_has_solution_d2",
+        /* 10 */ "OeisA228828.a_two",
+        /* 11 */ "Erdos399.erdos_399.variants.cambie",
+        /* 12 */ "Erdos349.exists_t_for_k_disjoint_segments",
+        /* 13 */ "Erdos686.erdos_686.variants.four_three",
+        /* 14 */ "OpenQuantumProblem23.hasConstantOverlapSq_singleton",
+        /* 15 */ "WrittenOnTheWallII.Test.house_radius",
+        /* 16 */ "Erdos678.lcmInterval_lt_example3",
+        /* 17 */ "Gourevitch.gourevitch_series_identity",
+        /* 18 */ "WrittenOnTheWallII.GraphConjecture16.conjecture16",
+        /* 19 */ "Erdos12.erdos_12.variants.erdos_sarkozy",
+        /* 20 */ "Mahler32.mahler_conjecture.variants.consequence",
+        /* 21 */ "DegreeSequencesTriangleFree.lemma2_d",
+        /* 22 */ "Kaplansky.UnitConjecture.counterexamples.ii",
+        /* 23 */ "Erdos697.erdos_697.parts.i",
+        /* 24 */ "Erdos61.erdos_61.variants.bnss23",
+        /* 25 */ "Erdos968.erdos_968.variants.sum_abs_diff_isTheta_log_sq",
+        /* 26 */ "RamanujanTau.ramanujan_petersson",
+        /* 27 */ "Green14.green_14_quadratic",
+        /* 28 */ "Erdos1063.erdos_1063.variants.cambie_upper_bound",
+        /* 29 */ "WrittenOnTheWallII.Test.petersen_residue",
+        /* 30 */ "Erdos697.density_exists",
+        /* 31 */ "Green14.W_3_15",
+        /* 32 */ "OpenQuantumProblem35.ame_2_exists",
+        /* 33 */ "Erdos392.erdos_392.variants.implication",
+        /* 34 */ "Erdos886.erdos_886.variants.rosenfeld_infinite",
+        /* 35 */ "OpenQuantumProblem23.qubitSICFamily_pairwise",
+        /* 36 */ "Erdos835.johnsonGraph_18_9_chromaticNumber",
+        /* 37 */ "OeisA56777.a_65",
+        /* 38 */ "Erdos41.erdos_41.variants.pairwise",
+        /* 39 */ "OeisA232174.hasPrimeRepresentation_2",
+        /* 40 */ "Erdos350.distinctSubsetSums_1_2",
+        /* 41 */ "Arxiv.«2602.05192».finiteAdditiveConvolution_monic'",
+        /* 42 */ "Erdos295.erdos_295.variants.erdos_straus",
+        /* 43 */ "Erdos36.M_four",
+        /* 44 */ "Erdos590.erdos_590",
+        /* 45 */ "Arxiv.«1308.0994».KTExtendsK",
+        /* 46 */ "Erdos198.erdos_198.variants.concrete",
+        /* 47 */ "Erdos513.erdos_513.variants.lower_bound",
+        /* 48 */ "Erdos198.baumgartner_strong",
+        /* 49 */ "Erdos617.erdos_617.variants.r_eq_4",
+        /* 50 */ "Erdos1038.erdos_1038.parts.ii",
+        /* 51 */ "OeisA231201.primeCondition_8",
+        /* 52 */ "Erdos56.maxWeaklyDivisible_one",
+        /* 53 */ "Erdos17.isClusterPrime_97_isLeast_non_cluster",
+        /* 54 */ "BealConjecture.flt_of_beal_conjecture",
+        /* 55 */ "Arxiv.«1609.08688».maximalLength_ge_of_isSquare",
+        /* 56 */ "RiemannZetaValues.infinite_irrational_at_odd",
+        /* 57 */ "AgohGiuga.isWeakGiuga_iff_sum_primeFactors",
+        /* 58 */ "OeisA6697.count_false_morphism",
+        /* 59 */ "Mathoverflow10799.μ_half_eq_uniform",
+        /* 60 */ "OeisA67720.a_6",
+        /* 61 */ "OpenQuantumProblem13.Qubit.star_smul_mul_smul",
+        /* 62 */ "Erdos920.erdos_920.variants.k_eq_3",
+        /* 63 */ "Erdos26.erdos_26.variants.rusza",
+        /* 64 */ "InverseGalois.inverse_galois_problem.variants.symmetric_group",
+        /* 65 */ "Erdos1067.erdos_1067.variants.infinite_edge_connectivity",
+        /* 66 */ "Erdos1074.erdos_1074.variants.EHSNumbers_init",
+        /* 67 */ "Erdos26.not_isThick_of_finite",
+        /* 68 */ "Erdos50.erdos_50_schoenberg",
+        /* 69 */ "Erdos951.erdos_951.variants.isBeurlingPrimes",
+        /* 70 */ "Erdos965.erdos_965.variants.generalization",
+        /* 71 */ "Erdos985.erdos_985.variants.two_three_five_primitive_root",
+        /* 72 */ "PellNumbers.pellNumber_two",
+        /* 73 */ "WrittenOnTheWallII.Test.C6_size",
+        /* 74 */ "BusyBeaver.sanity_check",
+        /* 75 */ "OpenQuantumProblem13.Qubit.firstCol_normSq",
+        /* 76 */ "Erdos263.erdos_263.variants.sub_doubly_exponential",
+        /* 77 */ "Arxiv.«1609.08688».tripleProduct_const",
+        /* 78 */ "Erdos317.erdos_317.variants.counterexample",
+        /* 79 */ "OpenQuantumProblem23.sicOverlapSq_three",
+        /* 80 */ "Erdos442.erdos_442.variants.tao",
+        /* 81 */ "AgohGiuga.korselts_criterion",
+        /* 82 */ "Erdos1054.f_undefined_at_2",
+        /* 83 */ "Erdos503.erdos_503.variants.R3",
+        /* 84 */ "OeisA63880.a_of_primitive_mul_squarefree",
+        /* 85 */ "Erdos1142.erdos_1142.variants.mientka_weitzenkamp",
+        /* 86 */ "CongruentNumber.congruentNumber_7",
+        /* 87 */ "WrittenOnTheWallII.Test.petersen_szeged",
+        /* 88 */ "WrittenOnTheWallII.Test.petersen_radius",
+        /* 89 */ "Erdos590.erdos_590.variants.ge_three_false",
+        /* 90 */ "Erdos494.erdos_494.variants.product",
+        /* 91 */ "Green29.green_29.variant",
+        /* 92 */ "Erdos865.erdos_865.variants.k2",
+        /* 93 */ "Hadamard.HadamardConjecture.variants.first_cases",
+        /* 94 */ "Mathoverflow10799.boundaryCount_univ",
+        /* 95 */ "Erdos457.erdos_457",
+        /* 96 */ "OpenQuantumProblem23.bb84Family_not_isSICFamily",
+        /* 97 */ "Green32.hasGap_empty",
+        /* 98 */ "Erdos1052.isUnitaryPerfect_60",
+        /* 99 */ "OeisA67720.a_1",
+    };
+
+    log.LogInformation("[scan-hg] {N} goals, {S} shards, {M}m timeout{H}",
+        fc100Goals.Length, shards, minutes, holdout ? ", HOLDOUT" : "");
+
+    if (holdout)
+    {
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine("  [HOLDOUT MODE] NEXUS_HG_HOLDOUT=1 — seed graph = generic Mathlib only.");
+        Console.WriteLine("  Proved results will be stored as survivesHoldout=true in Neo4j.");
+        Console.ResetColor();
+    }
+
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var summary = await solver.ScanAsync(
+        fc100Goals,
+        shardCount: shards,
+        processTimeout: TimeSpan.FromMinutes(minutes),
+        holdout: holdout,
+        ct: CancellationToken.None);
+    sw.Stop();
+
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine($"══ scan-hg Summary ({sw.Elapsed.TotalSeconds:F1}s) ═════════════");
+    Console.ResetColor();
+
+    if (summary.AnyDiscarded)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"  ⚠ {summary.DiscardedShards}/{summary.TotalShards} shards DISCARDED (soundness gate or timeout)");
+        Console.ResetColor();
+    }
+
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine($"  GENUINE  : {summary.GenuineCount} / {fc100Goals.Length}  (composed from external lemmas)");
+    Console.ResetColor();
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine($"  SELF-CITE: {summary.SelfCiteCount} / {fc100Goals.Length}  (goal applied to itself — run SorryAudit to check sorry-free)");
+    Console.ResetColor();
+    Console.WriteLine($"  GAP      : {summary.GapCount} / {fc100Goals.Length}");
+    Console.WriteLine($"  Shards   : {summary.TotalShards - summary.DiscardedShards} ok, {summary.DiscardedShards} discarded");
+    Console.WriteLine($"  Elapsed  : {sw.Elapsed}");
+    Console.WriteLine();
+
+    foreach (var r in summary.Results.Where(r => r.Proved && !r.IsSelfCitation).OrderBy(r => r.Name))
+        Console.WriteLine($"  [GENUINE]    {r.Name}  via [{string.Join(", ", r.Steps)}]");
+    foreach (var r in summary.Results.Where(r => r.IsSelfCitation).OrderBy(r => r.Name))
+        Console.WriteLine($"  [SELF-CITE]  {r.Name}");
+
+    // ── Persist to Neo4j ────────────────────────────────────────────────────
+    var scanRun = new HgScanRun(
+        Id:              Guid.NewGuid().ToString("N"),
+        RunAt:           DateTime.UtcNow - sw.Elapsed,
+        ElapsedSeconds:  sw.Elapsed.TotalSeconds,
+        Shards:          shards,
+        TimeoutSeconds:  minutes * 60,
+        TotalGoals:      fc100Goals.Length,
+        ProvedCount:     summary.ProvedCount,
+        GenuineCount:    summary.GenuineCount,
+        SelfCiteCount:   summary.SelfCiteCount,
+        GapCount:        summary.GapCount,
+        DiscardedShards: summary.DiscardedShards,
+        Goals:           summary.Results,
+        IsHoldoutRun:    holdout);
+
+    try
+    {
+        var neo4j = host.Services.GetRequiredService<INeo4jClient>();
+        await neo4j.UpsertScanRunAsync(scanRun, CancellationToken.None);
+        Console.ForegroundColor = ConsoleColor.DarkCyan;
+        Console.WriteLine($"  [Neo4j] :HgScanRun {scanRun.Id[..8]}…  ({summary.GenuineCount} genuine, {summary.SelfCiteCount} self-cite, {summary.GapCount} gap)");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        log.LogWarning(ex, "[scan-hg] Neo4j persistence skipped — is Neo4j running?");
+    }
+
+    return summary.AnyDiscarded ? 2 : 0;
+}
+
 static async Task<int> RunIngestHgAsync(IHost host, string[] args)
 {
     // Reads hg_cache.jsonl written by the Lean cold run and upserts every
@@ -213,7 +429,10 @@ static async Task<int> RunIngestHgAsync(IHost host, string[] args)
     if (!File.Exists(inputPath))
     {
         Console.Error.WriteLine($"[ingest-hg] File not found: {inputPath}");
-        Console.Error.WriteLine("  Run the Lean engine cold first (rm hg_cache.hge && lake env lean ErdosHypergraph.lean)");
+        Console.Error.WriteLine("  Run the Lean engine cold first:");
+        Console.Error.WriteLine("    cd formal-conjectures");
+        Console.Error.WriteLine("    rm -f _nexus_tmp/hg_cache.hge");
+        Console.Error.WriteLine("    lake env lean _nexus_tmp/ErdosHypergraph.lean");
         return 1;
     }
 
@@ -327,6 +546,9 @@ static void PrintUsage()
           nexus schema                          ← print Neo4j DDL to stdout
           nexus stats                           ← show fossil/landmark counts
           nexus ingest-hg [--input <path>]      ← push hg_cache.jsonl → Neo4j :HyperedgeRecord
+          nexus scan-hg   [--shards N] [--timeout-minutes M]
+                                                ← parallel FC100 search (N Lean processes)
+                                                  each shard self-certifies before emitting PROVED
 
         Environment variables:
           DEEPSEEK_API_KEY        DeepSeek V4 API key (shared with FSDE)

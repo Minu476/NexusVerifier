@@ -103,13 +103,28 @@ public sealed class ProofCartographer
         return msg;
     }
 
-    private static string ComputeLandmarkId(ProofState state, string problemId)
+    internal static string ComputeLandmarkId(ProofState state, string problemId)
     {
         // Landmark identity: problem + sketch-hash + sorry count. Same proof
         // state in same problem maps to the same landmark.
         var key = $"{problemId}|{state.SketchHash}|{state.SorryCount}";
         var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key));
         return Convert.ToHexString(hash)[..32].ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Computes the landmark ID directly from a sketch string and sorry count,
+    /// without requiring a full <see cref="ProofState"/> to be constructed.
+    /// Used by <see cref="NexusAgent.Core.Agent.NexusOrchestrator"/> for
+    /// cross-episode cycle detection (V2 <c>DetectCycleInTrajectoryAsync</c> pattern).
+    /// </summary>
+    internal static string ComputeLandmarkId(string sketch, int sorryCount, string problemId)
+    {
+        var sketchHash = Convert.ToHexString(
+            SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(sketch))).ToLowerInvariant();
+        var key = $"{problemId}|{sketchHash}|{sorryCount}";
+        return Convert.ToHexString(
+            SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)))[..32].ToLowerInvariant();
     }
 }
 

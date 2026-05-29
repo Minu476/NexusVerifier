@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusAgent.Cli", "NexusAgen
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusAgent.Tests", "NexusAgent.Tests\NexusAgent.Tests.csproj", "{C3DD0E65-B99A-4C77-A3BB-C80BEB137DE4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusAgent.MathlibIngestor", "NexusAgent.MathlibIngestor\NexusAgent.MathlibIngestor.csproj", "{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{C3DD0E65-B99A-4C77-A3BB-C80BEB137DE4}.Release|x64.Build.0 = Release|Any CPU
 		{C3DD0E65-B99A-4C77-A3BB-C80BEB137DE4}.Release|x86.ActiveCfg = Release|Any CPU
 		{C3DD0E65-B99A-4C77-A3BB-C80BEB137DE4}.Release|x86.Build.0 = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|x64.Build.0 = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Debug|x86.Build.0 = Debug|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|x64.ActiveCfg = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|x64.Build.0 = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|x86.ActiveCfg = Release|Any CPU
+		{EB62DE3D-D144-4EFF-AD5F-5617CA61A64B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

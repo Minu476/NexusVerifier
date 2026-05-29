@@ -28,7 +28,7 @@ public sealed class HallucinationGateTests
         _neo4j.Setup(n => n.NearestFossilsAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<float>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(Array.Empty<FossilMatch>() as IReadOnlyList<FossilMatch>);
 
-        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_QwenLocal);
+        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
 
         var fossilizer = new ProofFossilizer(_neo4j.Object, _encoder, NullLogger<ProofFossilizer>.Instance);
         _gate = new HallucinationGate(fossilizer, _encoder, [_qwen.Object],
@@ -55,7 +55,7 @@ public sealed class HallucinationGateTests
              .ReturnsAsync(new LlmResponse
              {
                  Content = "REAL",
-                 Tier = LlmTier.Tier1_QwenLocal,
+                 Tier = LlmTier.Tier1_Cheap,
                  InputTokens = 50, OutputTokens = 1,
                  CachedInputTokens = 0,
                  EstimatedCostUsd = 0m,
@@ -79,7 +79,7 @@ public sealed class HallucinationGateTests
              .ReturnsAsync(new LlmResponse
              {
                  Content = "SUSPECT",
-                 Tier = LlmTier.Tier1_QwenLocal,
+                 Tier = LlmTier.Tier1_Cheap,
                  InputTokens = 50, OutputTokens = 1,
                  CachedInputTokens = 0,
                  EstimatedCostUsd = 0m,

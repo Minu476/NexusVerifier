@@ -15,6 +15,12 @@ public sealed class ProofFossilizer
     private readonly ProofStateEncoder _encoder;
     private readonly ILogger<ProofFossilizer> _log;
 
+    /// <summary>
+    /// Per-process run identifier. Each dotnet invocation gets a unique ID so
+    /// fossils created in this run can be distinguished from those reused from prior runs.
+    /// </summary>
+    public static readonly string RunId = Guid.NewGuid().ToString("N")[..8];
+
     public ProofFossilizer(
         INeo4jClient neo4j,
         ProofStateEncoder encoder,
@@ -45,6 +51,8 @@ public sealed class ProofFossilizer
             ProvedAt = DateTime.UtcNow,
             SourceProblems = [sourceProblem],
             UseCount = 0,
+            CompilationVerified = true,
+            RunId = RunId,
         };
 
         await _neo4j.UpsertFossilAsync(fossil, ct);
@@ -66,14 +74,28 @@ public sealed class ProofFossilizer
         var vec = _encoder.Encode(currentState);
         var matches = await _neo4j.NearestFossilsAsync(vec, topK, minSimilarity, ct);
 
-        if (matches.Count > 0)
+        var filtered = matches
+            .Where(match => match.Similarity >= minSimilarity)
+            .Select(match =>
+            {
+                // Keep unverified fossils in the retrieval horizon, but rank them lower.
+                // Applying a hard post-weight threshold can starve the fallback path.
+                var verificationWeight = match.Fossil.CompilationVerified ? 1f : 0.75f;
+                var adjustedSimilarity = match.Similarity * verificationWeight;
+                return match with { Similarity = adjustedSimilarity };
+            })
+            .OrderByDescending(match => match.Similarity)
+            .Take(topK)
+            .ToArray();
+
+        if (filtered.Length > 0)
         {
             _log.LogDebug("Fossil retrieval: {Count} matches, top={Top:F3}",
-                matches.Count, matches[0].Similarity);
+                filtered.Length, filtered[0].Similarity);
         }
-        return matches;
+        return filtered;
     }
 
     public async Task RecordUseAsync(string fossilId, CancellationToken ct)
-        => await _neo4j.IncrementFossilUseCountAsync(fossilId, ct);
+        => await _neo4j.IncrementFossilUseCountAsync(fossilId, RunId, ct);
 }

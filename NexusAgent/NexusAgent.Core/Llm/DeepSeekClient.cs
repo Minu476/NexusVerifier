@@ -11,15 +11,18 @@ using NexusAgent.Core.Models;
 namespace NexusAgent.Core.Llm;
 
 /// <summary>
-/// DeepSeek V4 client. Uses the OpenAI-compatible chat completions endpoint.
-/// Same client class handles both V4-Flash and V4-Pro — the model id is set
-/// per instance via the tier.
+/// DeepSeek client. Uses the OpenAI-compatible chat completions endpoint.
+/// Same client class handles both tiers — the model id is set per instance.
 ///
-/// Pricing as of May 2026 (verified May 22, 2026):
-///   V4-Flash: $0.14/M input (cache miss), $0.0028/M cached, $0.28/M output
-///   V4-Pro:   $0.435/M input (cache miss), $0.003625/M cached, $0.87/M output
+/// Valid model names (May 2026):
+///   deepseek-chat     — DeepSeek-V3, fast general coding  (Tier 1 + Tier 2)
+///   deepseek-reasoner — DeepSeek-R1, complex reasoning    (Tier 3)
 ///
-/// Cache hit pricing is ~50x cheaper. Our prompts are designed for prefix-cache
+/// Pricing (per million tokens, USD, approximate):
+///   deepseek-chat:     $0.27/M input (cache miss), $0.07/M cached, $1.10/M output
+///   deepseek-reasoner: $0.55/M input (cache miss), $0.14/M cached, $2.19/M output
+///
+/// Cache hit pricing is ~4x cheaper. Our prompts are designed for prefix-cache
 /// hits — the system prompt + sketch prefix is stable across turns of an episode.
 /// </summary>
 public sealed class DeepSeekClient : ILlmClient
@@ -54,27 +57,45 @@ public sealed class DeepSeekClient : ILlmClient
         _outputPricePerMillion = outputPrice;
     }
 
+    /// <summary>Tier 1 instance — replaces Qwen local. Same model as Flash but used for
+    /// early turns (higher temperature, exploratory). No local GPU required.</summary>
+    public static DeepSeekClient Tier1(
+        HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
+        => new(http, config.Value, log,
+            LlmTier.Tier1_Cheap,
+            "deepseek-chat",
+            inputPrice: 0.27m,
+            cachedInputPrice: 0.07m,
+            outputPrice: 1.10m);
+
     public static DeepSeekClient Flash(
         HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
         => new(http, config.Value, log,
             LlmTier.Tier2_DeepSeekFlash,
-            "deepseek-v4-flash",
-            inputPrice: 0.14m,
-            cachedInputPrice: 0.0028m,
-            outputPrice: 0.28m);
+            "deepseek-chat",
+            inputPrice: 0.27m,
+            cachedInputPrice: 0.07m,
+            outputPrice: 1.10m);
 
     public static DeepSeekClient Pro(
         HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
         => new(http, config.Value, log,
             LlmTier.Tier3_PremiumCloud,
-            "deepseek-v4-pro",
-            inputPrice: 0.435m,
-            cachedInputPrice: 0.003625m,
-            outputPrice: 0.87m);
+            "deepseek-reasoner",
+            inputPrice: 0.55m,
+            cachedInputPrice: 0.14m,
+            outputPrice: 2.19m);
 
     public async Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
+
+        // deepseek-reasoner's max_tokens budget covers BOTH thinking tokens AND the answer.
+        // 2048 is exhausted entirely by the reasoning chain — the model never reaches the
+        // answer, so content comes back null. Use at least 8192 for the reasoner model.
+        var effectiveMaxTokens = _modelId == "deepseek-reasoner"
+            ? Math.Max(request.MaxOutputTokens, 8192)
+            : request.MaxOutputTokens;
 
         var apiRequest = new ChatCompletionRequest
         {
@@ -83,7 +104,7 @@ public sealed class DeepSeekClient : ILlmClient
                 .Select(m => new ChatMessage(m.Role, m.Content))
                 .ToArray(),
             Temperature = request.Temperature,
-            MaxTokens = request.MaxOutputTokens,
+            MaxTokens = effectiveMaxTokens,
             Stream = false,
         };
 
@@ -107,7 +128,22 @@ public sealed class DeepSeekClient : ILlmClient
 
         sw.Stop();
 
-        var content = payload.Choices.FirstOrDefault()?.Message.Content ?? "";
+        var choice = payload.Choices.FirstOrDefault();
+        var content = choice?.Message.Content;
+
+        // DeepSeek-R1 (reasoner) returns "content": null for hard problems where the
+        // answer is only in the internal reasoning chain (reasoning_content).
+        // Fall back to reasoning_content so ExtractLeanFromResponse can still find code.
+        if (string.IsNullOrEmpty(content) && !string.IsNullOrEmpty(choice?.Message.ReasoningContent))
+        {
+            content = choice!.Message.ReasoningContent;
+            _log.LogDebug(
+                "DeepSeek {Model}: content was null/empty — falling back to reasoning_content ({Len} chars)",
+                _modelId, content.Length);
+        }
+
+        content ??= "";
+
         var usage = payload.Usage;
         var cachedTokens = usage?.PromptCacheHitTokens ?? 0;
         var newInputTokens = (usage?.PromptTokens ?? 0) - cachedTokens;
@@ -159,8 +195,21 @@ internal sealed record ChatCompletionResponse
 internal sealed record ChatChoice
 {
     [JsonPropertyName("index")]         public int Index { get; init; }
-    [JsonPropertyName("message")]       public ChatMessage Message { get; init; } = new("assistant", "");
+    [JsonPropertyName("message")]       public AssistantMessage Message { get; init; } = new();
     [JsonPropertyName("finish_reason")] public string? FinishReason { get; init; }
+}
+
+/// <summary>
+/// Response-side assistant message. Separating from the request <see cref="ChatMessage"/>
+/// so that <c>Content</c> can be nullable (DeepSeek-R1 returns <c>"content": null</c>
+/// when reasoning is in <c>reasoning_content</c> only) and <c>ReasoningContent</c>
+/// can be captured as a fallback source of Lean code.
+/// </summary>
+internal sealed class AssistantMessage
+{
+    [JsonPropertyName("role")]              public string Role { get; init; } = "assistant";
+    [JsonPropertyName("content")]           public string? Content { get; init; }
+    [JsonPropertyName("reasoning_content")] public string? ReasoningContent { get; init; }
 }
 
 internal sealed record Usage
@@ -174,4 +223,5 @@ internal sealed record Usage
 
 [JsonSerializable(typeof(ChatCompletionRequest))]
 [JsonSerializable(typeof(ChatCompletionResponse))]
+[JsonSerializable(typeof(AssistantMessage))]
 internal sealed partial class DeepSeekJsonContext : JsonSerializerContext;

@@ -11,17 +11,22 @@ using NexusAgent.Core.Models;
 namespace NexusAgent.Core.Llm;
 
 /// <summary>
-/// Qwen3-max cloud client via Alibaba DashScope OpenAI-compatible API.
-/// Used as Tier 3 (premium) when local Qwen + DeepSeek Flash cannot close a goal.
+/// Qwen3.7-max cloud client via Alibaba DashScope OpenAI-compatible API.
+/// Used as Tier 3 (premium) for proof generation, and optionally as a
+/// <see cref="LlmTier.Tier0_GateJuror"/> in <c>HallucinationGate</c>.
 ///
 /// Endpoint: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 /// Auth:     Authorization: Bearer $DASHSCOPE_API_KEY
-/// Model:    qwen-max  (Qwen3-235B-A22B, full MoE inference — 22B active params)
+/// Model:    qwen3.7-max  (Qwen3-235B-A22B, full MoE inference — 22B active params)
 ///
 /// DashScope pricing (international, as of May 2026):
 ///   Input:        $3.23 / M tokens
 ///   Input cached: $0.32 / M tokens  (~10× cheaper on prompt-cache hits)
 ///   Output:       $9.58 / M tokens
+///
+/// The prefix-cache benefit makes gate classification very cheap: the classify
+/// prompt is ~200 tokens; after the first call per session the prefix is cached,
+/// costing only $0.32/M per subsequent call.
 ///
 /// DashScope usage field differs from DeepSeek — cache hits are returned in
 ///   usage.prompt_tokens_details.cached_tokens  (OpenAI spec format)
@@ -32,23 +37,33 @@ public sealed class QwenCloudClient : ILlmClient
     private readonly HttpClient _http;
     private readonly NexusConfig _config;
     private readonly ILogger<QwenCloudClient> _log;
+    private readonly LlmTier _tier;
 
     // Pricing constants (per million tokens)
     private const decimal InputPricePerMillion       = 3.23m;
     private const decimal CachedInputPricePerMillion = 0.32m;
     private const decimal OutputPricePerMillion      = 9.58m;
 
-    public LlmTier Tier => LlmTier.Tier3_PremiumCloud;
+    public LlmTier Tier => _tier;
 
     public QwenCloudClient(
         HttpClient http,
         IOptions<NexusConfig> config,
-        ILogger<QwenCloudClient> log)
+        ILogger<QwenCloudClient> log,
+        LlmTier tier = LlmTier.Tier3_PremiumCloud)
     {
         _http   = http;
         _config = config.Value;
         _log    = log;
+        _tier   = tier;
     }
+
+    /// <summary>Gate-juror instance — same model/endpoint, tagged as
+    /// <see cref="LlmTier.Tier0_GateJuror"/> so HallucinationGate picks it up.
+    /// DashScope prefix-caching makes repeated classify calls ~10× cheaper.</summary>
+    public static QwenCloudClient GateJuror(
+        HttpClient http, IOptions<NexusConfig> config, ILogger<QwenCloudClient> log)
+        => new(http, config, log, LlmTier.Tier0_GateJuror);
 
     public async Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken ct)
     {

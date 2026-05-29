@@ -20,7 +20,8 @@ public sealed class PromptBuilder
         string? cartographerHint,
         IReadOnlyList<FossilMatch> fossilHints,
         IReadOnlyList<HallucinationWarning> hallucinationWarnings,
-        int maxOutputTokens = 2048)
+        int maxOutputTokens = 2048,
+        string? structuralViolationWarning = null)
     {
         // STABLE PREFIX — same across all turns of an episode (cache-friendly)
         var stablePrefix = new StringBuilder();
@@ -40,9 +41,13 @@ public sealed class PromptBuilder
 
         if (state.ErrorMessages.Length > 0)
         {
-            mutableSuffix.AppendLine("# Lean errors from last attempt");
-            foreach (var err in state.ErrorMessages.Take(5))
-                mutableSuffix.AppendLine($"- {err}");
+            mutableSuffix.AppendLine("# Lean compiler diagnostics from last attempt");
+            foreach (var err in state.ErrorMessages)
+            {
+                mutableSuffix.AppendLine("```text");
+                mutableSuffix.AppendLine(err.Trim());
+                mutableSuffix.AppendLine("```");
+            }
             mutableSuffix.AppendLine();
         }
 
@@ -85,10 +90,24 @@ public sealed class PromptBuilder
             mutableSuffix.AppendLine();
         }
 
+        if (structuralViolationWarning is not null)
+        {
+            mutableSuffix.AppendLine("# ⛔ STRUCTURAL VIOLATION — previous attempt REJECTED");
+            mutableSuffix.AppendLine(structuralViolationWarning);
+            mutableSuffix.AppendLine();
+        }
+
         mutableSuffix.AppendLine("# Your task");
         mutableSuffix.AppendLine(
             "Produce an updated version of the sketch. Output exactly one ```lean fence " +
             "containing the entire updated file. No prose outside the fence.");
+        mutableSuffix.AppendLine();
+        mutableSuffix.AppendLine("**Hard constraint — do not modify the declarations:**");
+        mutableSuffix.AppendLine(
+            "The theorem and lemma declarations (names, types, and signatures) in the current " +
+            "sketch MUST be preserved exactly. Modify only the proof terms — what comes after " +
+            "`:= by` or `:=`. Renaming, removing, or substituting any declaration is detected " +
+            "automatically and will cause the response to be rejected.");
 
         return new LlmRequest
         {

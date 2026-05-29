@@ -23,7 +23,7 @@ public sealed partial class HallucinationGate
 {
     private readonly ProofFossilizer _fossilizer;
     private readonly ProofStateEncoder _encoder;
-    private readonly ILlmClient _qwenLocal;
+    private readonly IReadOnlyList<ILlmClient> _jurors;
     private readonly ILogger<HallucinationGate> _log;
     private readonly HallucinationConfig _cfg;
 
@@ -36,7 +36,11 @@ public sealed partial class HallucinationGate
     {
         _fossilizer = fossilizer;
         _encoder = encoder;
-        _qwenLocal = llmClients.First(c => c.Tier == LlmTier.Tier1_QwenLocal);
+        // Jurors: Tier1_Cheap (always present) + any Tier0_GateJuror clients (Gemini, etc.)
+        // Majority vote — SUSPECT only if >50% of jurors agree; absent jurors abstain (not SUSPECT).
+        _jurors = llmClients
+            .Where(c => c.Tier is LlmTier.Tier1_Cheap or LlmTier.Tier0_GateJuror)
+            .ToList();
         _log = log;
         _cfg = config ?? new HallucinationConfig();
     }
@@ -82,7 +86,10 @@ public sealed partial class HallucinationGate
             return (false, "");
         }
 
-        // Layer 2: Qwen classifier
+        // Layer 2: majority-vote across all gate jurors (Tier1_Cheap + Tier0_GateJuror).
+        // Jurors are queried in parallel; a failing juror abstains (counts as REAL).
+        // SUSPECT verdict requires a strict majority (> 50%) — one noisy model cannot
+        // block a valid lemma. With 3 jurors this means ≥2 must agree to convict.
         var prompt =
             $$"""
             You are a Lean 4 Mathlib expert. Classify the following lemma statement.
@@ -95,16 +102,41 @@ public sealed partial class HallucinationGate
             Answer with exactly one word: REAL or SUSPECT.
             """;
 
-        var response = await _qwenLocal.CompleteAsync(new LlmRequest
+        var classifyRequest = new LlmRequest
         {
             Messages = [new LlmMessage("user", prompt)],
             MaxOutputTokens = 8,
             Temperature = 0.0,
-        }, ct);
+        };
 
-        var verdict = response.Content.Trim().ToUpperInvariant();
-        if (verdict.StartsWith("SUSPECT"))
-            return (true, $"Qwen classifier flagged '{lemma.Name}' as not a recognized Mathlib theorem.");
+        var votes = await Task.WhenAll(_jurors.Select(async juror =>
+        {
+            try
+            {
+                var response = await juror.CompleteAsync(classifyRequest, ct);
+                var verdict = response.Content.Trim().ToUpperInvariant();
+                var isSuspect = verdict.StartsWith("SUSPECT");
+                _log.LogDebug("Gate juror {Tier} voted {Verdict} for '{Name}'",
+                    juror.Tier, isSuspect ? "SUSPECT" : "REAL", lemma.Name);
+                return isSuspect;
+            }
+            catch (Exception ex)
+            {
+                // Failing juror abstains — does not contribute a SUSPECT vote.
+                _log.LogWarning(ex, "Gate juror {Tier} failed for '{Name}' — abstaining",
+                    juror.Tier, lemma.Name);
+                return false;
+            }
+        }));
+
+        var suspectCount = votes.Count(v => v);
+        var isMajority = suspectCount > votes.Length / 2.0;
+
+        if (isMajority)
+        {
+            return (true,
+                $"Gate majority ({suspectCount}/{votes.Length}) flagged '{lemma.Name}' as not a recognized Mathlib theorem.");
+        }
 
         return (false, "");
     }

@@ -23,7 +23,7 @@ public sealed class QwenLocalClient : ILlmClient
     private readonly NexusConfig _config;
     private readonly ILogger<QwenLocalClient> _log;
 
-    public LlmTier Tier => LlmTier.Tier1_QwenLocal;
+    public LlmTier Tier => LlmTier.Tier1_Cheap;
 
     public QwenLocalClient(
         HttpClient http,

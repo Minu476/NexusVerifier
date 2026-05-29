@@ -1,0 +1,502 @@
+[
+  {
+    "full_name": "AddCircle.norm_coe_eq_abs_iff",
+    "file_path": "Mathlib/Analysis/Normed/Group/AddCircle.lean",
+    "first_state": "p x : \u211d\nhp : p \u2260 0\n\u22a2 \u2016\u2191x\u2016 = |x| \u2194 |x| \u2264 |p| / 2"
+  },
+  {
+    "full_name": "AkraBazziRecurrence.GrowsPolynomially.of_isTheta",
+    "file_path": "Mathlib/Computability/AkraBazzi/GrowsPolynomially.lean",
+    "first_state": "f\u271d f g : \u211d \u2192 \u211d\nhg : GrowsPolynomially g\nhf : f =\u0398[atTop] g\nhf' : \u2200\u1da0 (x : \u211d) in atTop, 0 \u2264 f x\n\u22a2 GrowsPolynomially f"
+  },
+  {
+    "full_name": "AlgebraicGeometry.isOpenImmersion_isLocalAtTarget",
+    "file_path": "Mathlib/AlgebraicGeometry/Morphisms/OpenImmersion.lean",
+    "first_state": "X Y Z : Scheme\nf : X \u27f6 Y\ng : Y \u27f6 Z\n\u22a2 PropertyIsLocalAtTarget @IsOpenImmersion"
+  },
+  {
+    "full_name": "Associates.factors_subsingleton",
+    "file_path": "Mathlib/RingTheory/UniqueFactorizationDomain.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b2 : CancelCommMonoidWithZero \u03b1\ninst\u271d\u00b9 : UniqueFactorizationMonoid \u03b1\ninst\u271d : Subsingleton \u03b1\na : Associates \u03b1\n\u22a2 a.factors = \u22a4"
+  },
+  {
+    "full_name": "BddBelow.isBoundedUnder",
+    "file_path": "Mathlib/Order/LiminfLimsup.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\n\u03b9 : Type u_4\n\u03b9' : Type u_5\nr : \u03b1 \u2192 \u03b1 \u2192 Prop\nf\u271d g : Filter \u03b1\ninst\u271d : Preorder \u03b1\nf : Filter \u03b2\nu : \u03b2 \u2192 \u03b1\nb : \u03b1\nhb : b \u2208 lowerBounds (range u)\n\u22a2 \u2200 (x : \u03b2), u x \u2265 b"
+  },
+  {
+    "full_name": "BoxIntegral.Box.measurableSet_coe",
+    "file_path": "Mathlib/Analysis/BoxIntegral/Partition/Measure.lean",
+    "first_state": "\u03b9 : Type u_1\nI : Box \u03b9\ninst\u271d : Countable \u03b9\n\u22a2 MeasurableSet \u2191I"
+  },
+  {
+    "full_name": "Cardinal.lift_le_nat_iff",
+    "file_path": "Mathlib/SetTheory/Cardinal/Basic.lean",
+    "first_state": "\u03b1 \u03b2 : Type u\na : Cardinal.{u}\nn : \u2115\n\u22a2 lift.{v, u} a \u2264 \u2191n \u2194 a \u2264 \u2191n"
+  },
+  {
+    "full_name": "CategoryTheory.FintypeCat.Action.pretransitive_of_isConnected",
+    "file_path": "Mathlib/CategoryTheory/Galois/Examples.lean",
+    "first_state": "G : Type u\ninst\u271d\u00b9 : Group G\nX : Action FintypeCat (MonCat.of G)\ninst\u271d : IsConnected X\nx y : \u2191X.V\n\u22a2 \u2203 g, g \u2022 x = y"
+  },
+  {
+    "full_name": "CategoryTheory.MonoidalCategory.leftUnitor_inv_tensor_id",
+    "file_path": "Mathlib/CategoryTheory/Monoidal/CoherenceLemmas.lean",
+    "first_state": "C : Type u_1\ninst\u271d\u00b9 : Category.{u_2, u_1} C\ninst\u271d : MonoidalCategory C\nX Y : C\n\u22a2 (\u03bb_ X).inv \u2297 \ud835\udfd9 Y = (\u03bb_ (X \u2297 Y)).inv \u226b (\u03b1_ (\ud835\udfd9_ C) X Y).inv"
+  },
+  {
+    "full_name": "CategoryTheory.Subobject.ofLEMk_comp",
+    "file_path": "Mathlib/CategoryTheory/Subobject/Basic.lean",
+    "first_state": "C : Type u\u2081\ninst\u271d\u00b2 : Category.{v\u2081, u\u2081} C\nX\u271d Y Z : C\nD : Type u\u2082\ninst\u271d\u00b9 : Category.{v\u2082, u\u2082} D\nB A : C\nX : Subobject B\nf : A \u27f6 B\ninst\u271d : Mono f\nh : X \u2264 mk f\n\u22a2 X.ofLEMk f h \u226b f = X.arrow"
+  },
+  {
+    "full_name": "CategoryTheory.induct_on_objects",
+    "file_path": "Mathlib/CategoryTheory/IsConnected.lean",
+    "first_state": "J : Type u\u2081\ninst\u271d\u00b2 : Category.{v\u2081, u\u2081} J\nK : Type u\u2082\ninst\u271d\u00b9 : Category.{v\u2082, u\u2082} K\ninst\u271d : IsPreconnected J\np : Set J\nj\u2080 : J\nh0 : j\u2080 \u2208 p\nh1 : \u2200 {j\u2081 j\u2082 : J}, (j\u2081 \u27f6 j\u2082) \u2192 (j\u2081 \u2208 p \u2194 j\u2082 \u2208 p)\nj : J\n\u22a2 j \u2208 p"
+  },
+  {
+    "full_name": "CauSeq.abv_pos_of_not_limZero",
+    "file_path": "Mathlib/Algebra/Order/CauSeq/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ninst\u271d\u00b2 : LinearOrderedField \u03b1\ninst\u271d\u00b9 : Ring \u03b2\nabv : \u03b2 \u2192 \u03b1\ninst\u271d : IsAbsoluteValue abv\nf : CauSeq \u03b2 abv\nhf : \u00acf.LimZero\n\u22a2 \u2203 K > 0, \u2203 i, \u2200 j \u2265 i, K \u2264 abv (\u2191f j)"
+  },
+  {
+    "full_name": "Complex.Gamma\u211d_ne_zero_of_re_pos",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Gamma/Deligne.lean",
+    "first_state": "s : \u2102\nhs : 0 < s.re\n\u22a2 s.Gamma\u211d \u2260 0"
+  },
+  {
+    "full_name": "Complex.coe_basisOneI",
+    "file_path": "Mathlib/Data/Complex/Module.lean",
+    "first_state": "R : Type u_1\nS : Type u_2\ni j : Fin 2\n\u22a2 (basisOneI.repr (![1, I] i)) j = (Finsupp.single i 1) j"
+  },
+  {
+    "full_name": "Complex.tsum_exp_neg_mul_int_sq",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Gaussian/PoissonSummation.lean",
+    "first_state": "E : Type u_1\ninst\u271d : NormedAddCommGroup E\na : \u2102\nha : 0 < a.re\n\u22a2 \u2211' (n : \u2124), cexp (-\u2191\u03c0 * a * \u2191n ^ 2) = 1 / a ^ (1 / 2) * \u2211' (n : \u2124), cexp (-\u2191\u03c0 / a * \u2191n ^ 2)"
+  },
+  {
+    "full_name": "CovBy.Ico_eq",
+    "file_path": "Mathlib/Order/Cover.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ninst\u271d : PartialOrder \u03b1\na b c : \u03b1\nh : a \u22d6 b\n\u22a2 Ico a b = {a}"
+  },
+  {
+    "full_name": "Dense.biUnion_uniformity_ball",
+    "file_path": "Mathlib/Topology/UniformSpace/Basic.lean",
+    "first_state": "\u03b1 : Type ua\n\u03b2 : Type ub\n\u03b3 : Type uc\n\u03b4 : Type ud\n\u03b9 : Sort u_1\ninst\u271d : UniformSpace \u03b1\ns : Set \u03b1\nU : Set (\u03b1 \u00d7 \u03b1)\nhs : Dense s\nhU : U \u2208 \ud835\udce4 \u03b1\n\u22a2 \u22c3 x \u2208 s, ball x U = univ"
+  },
+  {
+    "full_name": "ENNReal.rpow_eq_top_of_nonneg",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Pow/NNReal.lean",
+    "first_state": "x : \u211d\u22650\u221e\ny : \u211d\nhy0 : 0 \u2264 y\n\u22a2 x ^ y = \u22a4 \u2192 x = \u22a4"
+  },
+  {
+    "full_name": "EReal.image_coe_Iio",
+    "file_path": "Mathlib/Data/Real/EReal.lean",
+    "first_state": "x : \u211d\n\u22a2 Real.toEReal '' Iio x = Ioo \u22a5 \u2191x"
+  },
+  {
+    "full_name": "Equiv.Perm.card_cycleType_eq_zero",
+    "file_path": "Mathlib/GroupTheory/Perm/Cycle/Type.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b9 : Fintype \u03b1\ninst\u271d : DecidableEq \u03b1\n\u03c3 : Perm \u03b1\n\u22a2 card \u03c3.cycleType = 0 \u2194 \u03c3 = 1"
+  },
+  {
+    "full_name": "Erased.out_mk",
+    "file_path": "Mathlib/Data/Erased.lean",
+    "first_state": "\u03b1 : Sort u_1\na : \u03b1\n\u22a2 (mk a).out = a"
+  },
+  {
+    "full_name": "Filter.extraction_forall_of_eventually'",
+    "file_path": "Mathlib/Order/Filter/AtTopBot.lean",
+    "first_state": "\u03b9 : Type u_1\n\u03b9' : Type u_2\n\u03b1 : Type u_3\n\u03b2 : Type u_4\n\u03b3 : Type u_5\nP : \u2115 \u2192 \u2115 \u2192 Prop\nh : \u2200 (n : \u2115), \u2203 N, \u2200 k \u2265 N, P n k\n\u22a2 \u2200 (n : \u2115), \u2200\u1da0 (k : \u2115) in atTop, P n k"
+  },
+  {
+    "full_name": "Filter.principal_mono",
+    "file_path": "Mathlib/Order/Filter/Basic.lean",
+    "first_state": "\u03b1 : Type u\n\u03b2 : Type v\n\u03b3 : Type w\n\u03b4 : Type u_1\n\u03b9 : Sort x\nf g : Filter \u03b1\ns\u271d t\u271d s t : Set \u03b1\n\u22a2 \ud835\udcdf s \u2264 \ud835\udcdf t \u2194 s \u2286 t"
+  },
+  {
+    "full_name": "Fin.cons_rev",
+    "file_path": "Mathlib/Data/Fin/Tuple/Basic.lean",
+    "first_state": "m n\u271d : \u2115\n\u03b1\u271d : Fin (n\u271d + 1) \u2192 Type u\n\u03b2 : Type v\n\u03b1 : Type u_1\nn : \u2115\na : \u03b1\nf : Fin n \u2192 \u03b1\ni : Fin (n + 1)\n\u22a2 cons a f i.rev = snoc (f \u2218 rev) a i"
+  },
+  {
+    "full_name": "Finite.isDomain_to_isField",
+    "file_path": "Mathlib/RingTheory/LittleWedderburn.lean",
+    "first_state": "D : Type u_1\ninst\u271d\u00b2 : Finite D\ninst\u271d\u00b9 : Ring D\ninst\u271d : IsDomain D\n\u22a2 IsField D"
+  },
+  {
+    "full_name": "Finpartition.part_surjOn",
+    "file_path": "Mathlib/Order/Partition/Finpartition.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d : DecidableEq \u03b1\ns t u : Finset \u03b1\nP : Finpartition s\na : \u03b1\np : Finset \u03b1\nhp : p \u2208 \u2191P.parts\n\u22a2 p \u2208 P.part '' \u2191s"
+  },
+  {
+    "full_name": "Finset.insert_sdiff_cancel",
+    "file_path": "Mathlib/Data/Finset/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\ninst\u271d : DecidableEq \u03b1\ns t u v : Finset \u03b1\na b : \u03b1\nha : a \u2209 s\n\u22a2 insert a s \\ s = {a}"
+  },
+  {
+    "full_name": "Finset.noncommProd_singleton",
+    "file_path": "Mathlib/Data/Finset/NoncommProd.lean",
+    "first_state": "F : Type u_1\n\u03b9 : Type u_2\n\u03b1 : Type u_3\n\u03b2 : Type u_4\n\u03b3 : Type u_5\nf\u271d : \u03b1 \u2192 \u03b2 \u2192 \u03b2\nop : \u03b1 \u2192 \u03b1 \u2192 \u03b1\ninst\u271d\u00b9 : Monoid \u03b2\ninst\u271d : Monoid \u03b3\na : \u03b1\nf : \u03b1 \u2192 \u03b2\n\u22a2 (\u2191{a}).Pairwise fun a b => Commute (f a) (f b)"
+  },
+  {
+    "full_name": "Finsupp.card_Ico",
+    "file_path": "Mathlib/Data/Finsupp/Interval.lean",
+    "first_state": "\u03b9 : Type u_1\n\u03b1 : Type u_2\ninst\u271d\u00b2 : PartialOrder \u03b1\ninst\u271d\u00b9 : Zero \u03b1\ninst\u271d : LocallyFiniteOrder \u03b1\nf g : \u03b9 \u2192\u2080 \u03b1\n\u22a2 (Ico f g).card = \u220f i \u2208 f.support \u222a g.support, (Icc (f i) (g i)).card - 1"
+  },
+  {
+    "full_name": "FirstOrder.Language.realize_noTopOrder_iff",
+    "file_path": "Mathlib/ModelTheory/Order.lean",
+    "first_state": "L : Language\n\u03b1 : Type w\nM : Type w'\nn : \u2115\ninst\u271d : LE M\n\u22a2 M \u22a8 Language.order.noTopOrderSentence \u2194 NoTopOrder M"
+  },
+  {
+    "full_name": "Function.IsFixedPt.apply",
+    "file_path": "Mathlib/Dynamics/FixedPoints/Basic.lean",
+    "first_state": "\u03b1 : Type u\n\u03b2 : Type v\nf fa g : \u03b1 \u2192 \u03b1\nx\u271d y : \u03b1\nfb : \u03b2 \u2192 \u03b2\nm n k : \u2115\ne : Perm \u03b1\nx : \u03b1\nhx : IsFixedPt f x\n\u22a2 IsFixedPt f (f x)"
+  },
+  {
+    "full_name": "HahnSeries.single_coeff",
+    "file_path": "Mathlib/RingTheory/HahnSeries/Basic.lean",
+    "first_state": "\u0393 : Type u_1\nR : Type u_2\ninst\u271d\u00b9 : PartialOrder \u0393\ninst\u271d : Zero R\na b : \u0393\nr : R\n\u22a2 ((single a) r).coeff b = if b = a then r else 0"
+  },
+  {
+    "full_name": "Ideal.isUnit_iff",
+    "file_path": "Mathlib/RingTheory/Ideal/Operations.lean",
+    "first_state": "R : Type u\n\u03b9 : Type u_1\ninst\u271d : CommSemiring R\nI\u271d J K L I : Ideal R\nh : I = \u22a4\n\u22a2 \u22a4 = I * \u22a4"
+  },
+  {
+    "full_name": "InnerProductGeometry.angle_sub_eq_arccos_of_inner_eq_zero",
+    "file_path": "Mathlib/Geometry/Euclidean/Angle/Unoriented/RightAngle.lean",
+    "first_state": "V : Type u_1\ninst\u271d\u00b9 : NormedAddCommGroup V\ninst\u271d : InnerProductSpace \u211d V\nx y : V\nh : \u27eax, y\u27eb_\u211d = 0\n\u22a2 angle x (x - y) = Real.arccos (\u2016x\u2016 / \u2016x - y\u2016)"
+  },
+  {
+    "full_name": "Int.existsUnique_mem_box",
+    "file_path": "Mathlib/Order/Interval/Finset/Box.lean",
+    "first_state": "n : \u2115\nx\u271d x : \u2124 \u00d7 \u2124\n\u22a2 \u2203! n, x \u2208 box n"
+  },
+  {
+    "full_name": "Int.preimage_Ioc",
+    "file_path": "Mathlib/Algebra/Order/Floor.lean",
+    "first_state": "F : Type u_1\n\u03b1 : Type u_2\n\u03b2 : Type u_3\ninst\u271d\u00b9 : LinearOrderedRing \u03b1\ninst\u271d : FloorRing \u03b1\nz : \u2124\na\u271d a b : \u03b1\n\u22a2 Int.cast \u207b\u00b9' Ioc a b = Ioc \u230aa\u230b \u230ab\u230b"
+  },
+  {
+    "full_name": "IsCyclic.unique_zpow_zmod",
+    "file_path": "Mathlib/GroupTheory/SpecificGroups/Cyclic.lean",
+    "first_state": "\u03b1 : Type u\na : \u03b1\ninst\u271d\u00b2 : Group \u03b1\ninst\u271d\u00b9 : DecidableEq \u03b1\ninst\u271d : Fintype \u03b1\nha : \u2200 (x : \u03b1), x \u2208 zpowers a\nx : \u03b1\n\u22a2 \u2203! n, x = a ^ n.val"
+  },
+  {
+    "full_name": "IsPGroup.powEquiv_symm_apply",
+    "file_path": "Mathlib/GroupTheory/PGroup.lean",
+    "first_state": "p : \u2115\nG : Type u_1\ninst\u271d : Group G\nhG : IsPGroup p G\nn : \u2115\nhn : p.Coprime n\ng : G\n\u22a2 (hG.powEquiv hn).symm g = g ^ (orderOf g).gcdB n"
+  },
+  {
+    "full_name": "JordanHolderLattice.isMaximal_inf_right_of_isMaximal_sup",
+    "file_path": "Mathlib/Order/JordanHolder.lean",
+    "first_state": "X : Type u\ninst\u271d\u00b9 : Lattice X\ninst\u271d : JordanHolderLattice X\nx y : X\nhxz : IsMaximal x (x \u2294 y)\nhyz : IsMaximal y (x \u2294 y)\n\u22a2 IsMaximal (x \u2293 y) y"
+  },
+  {
+    "full_name": "List.Ico.eq_nil_of_le",
+    "file_path": "Mathlib/Data/List/Intervals.lean",
+    "first_state": "n m : \u2115\nh : m \u2264 n\n\u22a2 Ico n m = []"
+  },
+  {
+    "full_name": "List.cons_diff_of_mem",
+    "file_path": ".lake/packages/batteries/Batteries/Data/List/Lemmas.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b9 : BEq \u03b1\ninst\u271d : LawfulBEq \u03b1\na : \u03b1\nl\u2082 : List \u03b1\nh : a \u2208 l\u2082\nl\u2081 : List \u03b1\n\u22a2 (a :: l\u2081).diff l\u2082 = l\u2081.diff (l\u2082.erase a)"
+  },
+  {
+    "full_name": "List.formPerm_apply_get_length",
+    "file_path": "Mathlib/GroupTheory/Perm/List.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ninst\u271d : DecidableEq \u03b1\nl : List \u03b1\nx\u271d x : \u03b1\nxs : List \u03b1\n\u22a2 xs.length < (x :: xs).length"
+  },
+  {
+    "full_name": "List.le_findIdx_of_not",
+    "file_path": "Mathlib/Data/List/Indexes.lean",
+    "first_state": "\u03b1 : Type u\n\u03b2 : Type v\np : \u03b1 \u2192 Bool\nxs : List \u03b1\ni : \u2115\nh : i < xs.length\nh2 : \u2200 (j : \u2115) (hji : j < i), \u00acp (xs.get \u27e8j, \u22ef\u27e9) = true\n\u22a2 i \u2264 findIdx p xs"
+  },
+  {
+    "full_name": "List.nodup_permutations'Aux_iff",
+    "file_path": "Mathlib/Data/List/Perm.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\nl l\u2081 l\u2082 : List \u03b1\na : \u03b1\ns : List \u03b1\nx : \u03b1\n\u22a2 (permutations'Aux x s).Nodup \u2194 x \u2209 s"
+  },
+  {
+    "full_name": "List.takeD_eq_takeDTR",
+    "file_path": ".lake/packages/batteries/Batteries/Data/List/Basic.lean",
+    "first_state": "\u22a2 @takeD = @takeDTR"
+  },
+  {
+    "full_name": "LucasLehmer.sMod_lt",
+    "file_path": "Mathlib/NumberTheory/LucasLehmer.lean",
+    "first_state": "p : \u2115\nhp : p \u2260 0\ni : \u2115\n\u22a2 sMod p i < 2 ^ p - 1"
+  },
+  {
+    "full_name": "Mathlib.Tactic.Abel.term_smul",
+    "file_path": "Mathlib/Tactic/Abel.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d : AddCommMonoid \u03b1\nc n : \u2115\nx a : \u03b1\nn' : \u2115\na' : \u03b1\nh\u2081 : c * n = n'\nh\u2082 : smul c a = a'\n\u22a2 smul c (term n x a) = term n' x a'"
+  },
+  {
+    "full_name": "Matrix.isUnit_det_transpose",
+    "file_path": "Mathlib/LinearAlgebra/Matrix/NonsingularInverse.lean",
+    "first_state": "l : Type u_1\nm : Type u\nn : Type u'\n\u03b1 : Type v\ninst\u271d\u00b2 : Fintype n\ninst\u271d\u00b9 : DecidableEq n\ninst\u271d : CommRing \u03b1\nA B : Matrix n n \u03b1\nh : IsUnit A.det\n\u22a2 IsUnit A\u1d40.det"
+  },
+  {
+    "full_name": "Matroid.comap_base_iff",
+    "file_path": "Mathlib/Data/Matroid/Map.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\nf : \u03b1 \u2192 \u03b2\nE I s : Set \u03b1\nM : Matroid \u03b1\nN : Matroid \u03b2\nB : Set \u03b1\n\u22a2 (N.comap f).Base B \u2194 N.Basis (f '' B) (f '' (f \u207b\u00b9' N.E)) \u2227 InjOn f B \u2227 B \u2286 f \u207b\u00b9' N.E"
+  },
+  {
+    "full_name": "MeasureTheory.OuterMeasure.comap_ofFunction",
+    "file_path": "Mathlib/MeasureTheory/OuterMeasure/OfFunction.lean",
+    "first_state": "\u03b1 : Type u_1\nm : Set \u03b1 \u2192 \u211d\u22650\u221e\nm_empty : m \u2205 = 0\n\u03b2 : Type ?u.25201\nf : \u03b2 \u2192 \u03b1\nh : Monotone m \u2228 Surjective f\n\u22a2 (fun s => m (f '' s)) \u2205 = 0"
+  },
+  {
+    "full_name": "MeasureTheory.compl_mem_measurableCylinders",
+    "file_path": "Mathlib/MeasureTheory/Constructions/Cylinders.lean",
+    "first_state": "\u03b9 : Type u_1\n\u03b1 : \u03b9 \u2192 Type u_2\ninst\u271d : (i : \u03b9) \u2192 MeasurableSpace (\u03b1 i)\ns t : Set ((i : \u03b9) \u2192 \u03b1 i)\nhs : s \u2208 measurableCylinders \u03b1\n\u22a2 s\u1d9c \u2208 measurableCylinders \u03b1"
+  },
+  {
+    "full_name": "MeasureTheory.measure_union_lt_top_iff",
+    "file_path": "Mathlib/MeasureTheory/Measure/MeasureSpaceDef.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\n\u03b4 : Type u_4\n\u03b9 : Sort u_5\ninst\u271d : MeasurableSpace \u03b1\n\u03bc \u03bc\u2081 \u03bc\u2082 : Measure \u03b1\ns s\u2081 s\u2082 t : Set \u03b1\n\u22a2 \u03bc (s \u222a t) < \u22a4 \u2194 \u03bc s < \u22a4 \u2227 \u03bc t < \u22a4"
+  },
+  {
+    "full_name": "Metric.cthickening_closure",
+    "file_path": "Mathlib/Topology/MetricSpace/Thickening.lean",
+    "first_state": "\u03b9 : Sort u_1\n\u03b1 : Type u\n\u03b2 : Type v\ninst\u271d : PseudoEMetricSpace \u03b1\n\u03b4 \u03b5 : \u211d\ns t : Set \u03b1\nx : \u03b1\n\u22a2 cthickening \u03b4 (closure s) = cthickening \u03b4 s"
+  },
+  {
+    "full_name": "Monoid.exponent_dvd",
+    "file_path": "Mathlib/GroupTheory/Exponent.lean",
+    "first_state": "G : Type u\ninst\u271d : Monoid G\nn : \u2115\n\u22a2 exponent G \u2223 n \u2194 \u2200 (g : G), orderOf g \u2223 n"
+  },
+  {
+    "full_name": "Multiset.Icc_eq_zero_iff",
+    "file_path": "Mathlib/Order/Interval/Multiset.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b9 : Preorder \u03b1\ninst\u271d : LocallyFiniteOrder \u03b1\na b c : \u03b1\n\u22a2 Icc a b = 0 \u2194 \u00aca \u2264 b"
+  },
+  {
+    "full_name": "Multiset.inf_union",
+    "file_path": "Mathlib/Data/Multiset/Lattice.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b2 : SemilatticeInf \u03b1\ninst\u271d\u00b9 : OrderTop \u03b1\ninst\u271d : DecidableEq \u03b1\ns\u2081 s\u2082 : Multiset \u03b1\n\u22a2 (s\u2081 \u222a s\u2082).inf = s\u2081.inf \u2293 s\u2082.inf"
+  },
+  {
+    "full_name": "Multiset.rel_refl_of_refl_on",
+    "file_path": "Mathlib/Data/Multiset/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type v\n\u03b3 : Type u_2\n\u03b4 : Type u_3\nr\u271d : \u03b1 \u2192 \u03b2 \u2192 Prop\np : \u03b3 \u2192 \u03b4 \u2192 Prop\nm : Multiset \u03b1\nr : \u03b1 \u2192 \u03b1 \u2192 Prop\n\u22a2 (\u2200 x \u2208 m, r x x) \u2192 Rel r m m"
+  },
+  {
+    "full_name": "NNRat.add_def",
+    "file_path": "Mathlib/Data/NNRat/Defs.lean",
+    "first_state": "p q\u271d : \u211a\u22650\nn\u2081 n\u2082 d\u2081 d\u2082 d : \u2115\nq r : \u211a\u22650\n\u22a2 q + r = divNat (q.num * r.den + r.num * q.den) (q.den * r.den)"
+  },
+  {
+    "full_name": "NNReal.tendsto_rpow_atTop",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Pow/Asymptotics.lean",
+    "first_state": "y : \u211d\nhy : 0 < y\n\u22a2 Tendsto (fun x => x ^ y) atTop atTop"
+  },
+  {
+    "full_name": "Nat.add_pos_iff_pos_or_pos",
+    "file_path": "Mathlib/Data/Nat/Defs.lean",
+    "first_state": "a b c d m n k : \u2115\np q : \u2115 \u2192 Prop\n\u22a2 0 < m + n \u2194 0 < m \u2228 0 < n"
+  },
+  {
+    "full_name": "Nat.digits_lt_base",
+    "file_path": "Mathlib/Data/Nat/Digits.lean",
+    "first_state": "n b m d : \u2115\nhb : 1 < b\nhd : d \u2208 b.digits m\n\u22a2 d < b"
+  },
+  {
+    "full_name": "Nat.even_xor_odd'",
+    "file_path": "Mathlib/Algebra/Ring/Parity.lean",
+    "first_state": "F : Type u_1\n\u03b1 : Type u_2\n\u03b2 : Type u_3\nR : Type u_4\nm n\u271d n : \u2115\n\u22a2 \u2203 k, Xor' (n = 2 * k) (n = 2 * k + 1)"
+  },
+  {
+    "full_name": "Nat.gcd_add_mul_right_right",
+    "file_path": "Mathlib/Data/Nat/GCD/Basic.lean",
+    "first_state": "m n k : \u2115\n\u22a2 m.gcd (n + k * m) = m.gcd n"
+  },
+  {
+    "full_name": "Nat.or_exists_succ",
+    "file_path": "Mathlib/Data/Nat/Defs.lean",
+    "first_state": "a b c d m n k : \u2115\np q : \u2115 \u2192 Prop\n\u22a2 (\u2203 n, p n) \u2192 p 0 \u2228 \u2203 n, p (n + 1)"
+  },
+  {
+    "full_name": "NumberField.mem_span_integralBasis",
+    "file_path": "Mathlib/NumberTheory/NumberField/Basic.lean",
+    "first_state": "K : Type u_1\nL : Type u_2\ninst\u271d\u00b9 : Field K\ninst\u271d : Field L\nnf : NumberField K\nx : K\n\u22a2 x \u2208 Submodule.span \u2124 (Set.range \u21d1(integralBasis K)) \u2194 x \u2208 (algebraMap (\ud835\udcde K) K).range"
+  },
+  {
+    "full_name": "Ordinal.blsub_eq_zero_iff",
+    "file_path": "Mathlib/SetTheory/Ordinal/Arithmetic.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\nr : \u03b1 \u2192 \u03b1 \u2192 Prop\ns : \u03b2 \u2192 \u03b2 \u2192 Prop\nt : \u03b3 \u2192 \u03b3 \u2192 Prop\no : Ordinal.{u_4}\nf : (a : Ordinal.{u_4}) \u2192 a < o \u2192 Ordinal.{max u_5 u_4}\n\u22a2 o.blsub f = 0 \u2194 o = 0"
+  },
+  {
+    "full_name": "OrdinalApprox.lfpApprox_mem_fixedPoints_of_eq",
+    "file_path": "Mathlib/SetTheory/Ordinal/FixedPointApproximants.lean",
+    "first_state": "\u03b1 : Type u\ninst\u271d : CompleteLattice \u03b1\nf : \u03b1 \u2192o \u03b1\nx : \u03b1\na b c : Ordinal.{u}\nh_init : x \u2264 f x\nh_ab : a < b\nh_ac : a \u2264 c\nh_fab : lfpApprox f x a = lfpApprox f x b\n\u22a2 lfpApprox f x c \u2208 fixedPoints \u21d1f"
+  },
+  {
+    "full_name": "PFunctor.M.ichildren_mk",
+    "file_path": "Mathlib/Data/PFunctor/Univariate/M.lean",
+    "first_state": "F : PFunctor.{u}\nX : Type u_1\nf : X \u2192 \u2191F X\ninst\u271d\u00b9 : DecidableEq F.A\ninst\u271d : Inhabited F.M\nx : \u2191F F.M\ni : F.Idx\n\u22a2 ichildren i (M.mk x) = x.iget i"
+  },
+  {
+    "full_name": "Part.inter_get_eq",
+    "file_path": "Mathlib/Data/Part.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\ninst\u271d : Inter \u03b1\na b : Part \u03b1\nhab : (a \u2229 b).Dom\n\u22a2 (a \u2229 b).get hab = a.get \u22ef \u2229 b.get \u22ef"
+  },
+  {
+    "full_name": "Pell.y_dvd_iff",
+    "file_path": "Mathlib/NumberTheory/PellMatiyasevic.lean",
+    "first_state": "a : \u2115\na1 : 1 < a\nm n : \u2115\nh : yn a1 m \u2223 yn a1 n\nhp : n % m > 0\n\u22a2 False"
+  },
+  {
+    "full_name": "Polynomial.cyclotomic_expand_eq_cyclotomic_mul",
+    "file_path": "Mathlib/RingTheory/Polynomial/Cyclotomic/Expand.lean",
+    "first_state": "p n : \u2115\nhp : Nat.Prime p\nhdiv : \u00acp \u2223 n\nR : Type u_1\ninst\u271d : CommRing R\n\u22a2 (expand R p) (cyclotomic n R) = cyclotomic (n * p) R * cyclotomic n R"
+  },
+  {
+    "full_name": "Polynomial.eval_comp",
+    "file_path": "Mathlib/Algebra/Polynomial/Eval.lean",
+    "first_state": "R : Type u\nS : Type v\nT : Type w\n\u03b9 : Type y\na b : R\nm n : \u2115\ninst\u271d\u00b9 : CommSemiring R\np q : R[X]\nx : R\ninst\u271d : CommSemiring S\nf : R \u2192+* S\n\u22a2 eval x (p.comp q) = eval (eval x q) p"
+  },
+  {
+    "full_name": "Polynomial.ker_mapRingHom",
+    "file_path": "Mathlib/RingTheory/Polynomial/Basic.lean",
+    "first_state": "R : Type u\nS : Type u_1\ninst\u271d\u00b9 : CommSemiring R\ninst\u271d : Semiring S\nf : R \u2192+* S\n\u22a2 LinearMap.ker (mapRingHom f).toSemilinearMap = map C (RingHom.ker f)"
+  },
+  {
+    "full_name": "Polynomial.natDegree_C_add",
+    "file_path": "Mathlib/Algebra/Polynomial/Degree/Definitions.lean",
+    "first_state": "R : Type u\nS : Type v\na\u271d b c d : R\nn m : \u2115\ninst\u271d : Semiring R\np\u271d p q : R[X]\n\u03b9 : Type u_1\na : R\n\u22a2 (C a + p).natDegree = p.natDegree"
+  },
+  {
+    "full_name": "Polynomial.reverse_natDegree",
+    "file_path": "Mathlib/Algebra/Polynomial/Reverse.lean",
+    "first_state": "R : Type u_1\ninst\u271d : Semiring R\nf\u271d f : R[X]\n\u22a2 f.reverse.natDegree = f.natDegree - f.natTrailingDegree"
+  },
+  {
+    "full_name": "PowerSeries.ker_coeff_eq_max_ideal",
+    "file_path": "Mathlib/RingTheory/PowerSeries/Inverse.lean",
+    "first_state": "R : Type u_1\nk : Type u_2\ninst\u271d : Field k\nx\u271d : k\u27e6X\u27e7\n\u22a2 x\u271d \u2208 RingHom.ker (constantCoeff k) \u2194 x\u271d \u2208 maximalIdeal k\u27e6X\u27e7"
+  },
+  {
+    "full_name": "ProbabilityTheory.mgf_undef",
+    "file_path": "Mathlib/Probability/Moments.lean",
+    "first_state": "\u03a9 : Type u_1\n\u03b9 : Type u_2\nm : MeasurableSpace \u03a9\nX : \u03a9 \u2192 \u211d\np : \u2115\n\u03bc : Measure \u03a9\nt : \u211d\nhX : \u00acIntegrable (fun \u03c9 => rexp (t * X \u03c9)) \u03bc\n\u22a2 mgf X \u03bc t = 0"
+  },
+  {
+    "full_name": "Projectivization.Subspace.sup_span",
+    "file_path": "Mathlib/LinearAlgebra/Projectivization/Subspace.lean",
+    "first_state": "K : Type u_1\nV : Type u_2\ninst\u271d\u00b2 : Field K\ninst\u271d\u00b9 : AddCommGroup V\ninst\u271d : Module K V\nS : Set (\u2119 K V)\nW : Subspace K V\n\u22a2 W \u2294 span S = span (\u2191W \u222a S)"
+  },
+  {
+    "full_name": "RCLike.conj_smul",
+    "file_path": "Mathlib/Analysis/RCLike/Basic.lean",
+    "first_state": "K : Type u_1\nE : Type u_2\ninst\u271d : RCLike K\nr : \u211d\nz : K\n\u22a2 (starRingEnd K) (r \u2022 z) = r \u2022 (starRingEnd K) z"
+  },
+  {
+    "full_name": "Rat.mkRat_nonneg",
+    "file_path": "Mathlib/Algebra/Order/Ring/Rat.lean",
+    "first_state": "a\u271d b\u271d c p q : \u211a\na : \u2124\nha : 0 \u2264 a\nb : \u2115\n\u22a2 0 \u2264 mkRat a b"
+  },
+  {
+    "full_name": "Real.Angle.cos_pi_div_two_sub",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Trigonometric/Angle.lean",
+    "first_state": "\u03b8 : Angle\n\u22a2 (\u2191(\u03c0 / 2) - \u03b8).cos = \u03b8.sin"
+  },
+  {
+    "full_name": "Real.deriv_negMulLog",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Log/NegMulLog.lean",
+    "first_state": "x : \u211d\nhx : x \u2260 0\n\u22a2 deriv negMulLog x = -log x - 1"
+  },
+  {
+    "full_name": "Real.mul_le_sin",
+    "file_path": "Mathlib/Analysis/SpecialFunctions/Trigonometric/Complex.lean",
+    "first_state": "x : \u211d\nhx : 0 \u2264 x\nhx' : x \u2264 \u03c0 / 2\n\u22a2 2 / \u03c0 * x \u2264 sin x"
+  },
+  {
+    "full_name": "Real.sqrt_sq",
+    "file_path": "Mathlib/Data/Real/Sqrt.lean",
+    "first_state": "x y : \u211d\nh : 0 \u2264 x\n\u22a2 \u221a(x ^ 2) = x"
+  },
+  {
+    "full_name": "RightDerivMeasurableAux.differentiable_set_subset_D",
+    "file_path": "Mathlib/Analysis/Calculus/FDeriv/Measurable.lean",
+    "first_state": "F : Type u_1\ninst\u271d\u00b9 : NormedAddCommGroup F\ninst\u271d : NormedSpace \u211d F\nf : \u211d \u2192 F\nK : Set F\n\u22a2 {x | DifferentiableWithinAt \u211d f (Ici x) x \u2227 derivWithin f (Ici x) x \u2208 K} \u2286 D f K"
+  },
+  {
+    "full_name": "Set.Ico_eq_Ico_iff",
+    "file_path": "Mathlib/Order/Interval/Set/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ninst\u271d : LinearOrder \u03b1\na a\u2081 a\u2082 b b\u2081 b\u2082 c d : \u03b1\nh : a\u2081 < b\u2081 \u2228 a\u2082 < b\u2082\ne : Ico a\u2081 b\u2081 = Ico a\u2082 b\u2082\n\u22a2 a\u2081 = a\u2082 \u2227 b\u2081 = b\u2082"
+  },
+  {
+    "full_name": "Set.countable_pi",
+    "file_path": "Mathlib/Data/Set/Countable.lean",
+    "first_state": "\u03b1 : Type u\n\u03b2 : Type v\n\u03b3 : Type w\n\u03b9 : Sort x\n\u03c0 : \u03b1 \u2192 Type u_1\ninst\u271d : Finite \u03b1\ns : (a : \u03b1) \u2192 Set (\u03c0 a)\nhs : \u2200 (a : \u03b1), (s a).Countable\n\u22a2 {f | \u2200 (a : \u03b1), f a \u2208 s a}.Countable"
+  },
+  {
+    "full_name": "Set.image_mono",
+    "file_path": "Mathlib/Data/Set/Image.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\n\u03b3 : Type u_3\n\u03b9 : Sort u_4\n\u03b9' : Sort u_5\nf : \u03b1 \u2192 \u03b2\ns t : Set \u03b1\nh : s \u2286 t\n\u22a2 f '' s \u2286 f '' t"
+  },
+  {
+    "full_name": "Set.ncard_le_one_iff",
+    "file_path": "Mathlib/Data/Set/Card.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ns t : Set \u03b1\nf : \u03b1 \u2192 \u03b2\nhs : autoParam s.Finite _auto\u271d\n\u22a2 s.ncard \u2264 1 \u2194 \u2200 {a b : \u03b1}, a \u2208 s \u2192 b \u2208 s \u2192 a = b"
+  },
+  {
+    "full_name": "Set.wellFoundedOn_iff",
+    "file_path": "Mathlib/Order/WellFoundedSet.lean",
+    "first_state": "\u03b9 : Type u_1\n\u03b1 : Type u_2\n\u03b2 : Type u_3\n\u03b3 : Type u_4\n\u03c0 : \u03b9 \u2192 Type u_5\nr r' : \u03b1 \u2192 \u03b1 \u2192 Prop\nf : \u03b2 \u2192 \u03b1\ns t : Set \u03b1\nx y : \u03b1\n\u22a2 s.WellFoundedOn r \u2194 WellFounded fun a b => r a b \u2227 a \u2208 s \u2227 b \u2208 s"
+  },
+  {
+    "full_name": "SignType.nonneg_iff_ne_neg_one",
+    "file_path": "Mathlib/Data/Sign.lean",
+    "first_state": "a : SignType\n\u22a2 0 \u2264 a \u2194 a \u2260 -1"
+  },
+  {
+    "full_name": "SimpleGraph.dart_edge_eq_mk'_iff'",
+    "file_path": "Mathlib/Combinatorics/SimpleGraph/Dart.lean",
+    "first_state": "V : Type u_1\nG : SimpleGraph V\n\u22a2 \u2200 {d : G.Dart} {u v : V}, d.edge = s(u, v) \u2194 d.toProd.1 = u \u2227 d.toProd.2 = v \u2228 d.toProd.1 = v \u2227 d.toProd.2 = u"
+  },
+  {
+    "full_name": "Stream'.get_succ_iterate",
+    "file_path": "Mathlib/Data/Stream/Init.lean",
+    "first_state": "\u03b1 : Type u\n\u03b2 : Type v\n\u03b4 : Type w\nn : \u2115\nf : \u03b1 \u2192 \u03b1\na : \u03b1\n\u22a2 (iterate f a).get n.succ = (iterate f (f a)).get n"
+  },
+  {
+    "full_name": "Submonoid.coe_mul_self_eq",
+    "file_path": "Mathlib/Algebra/Group/Submonoid/Pointwise.lean",
+    "first_state": "\u03b1 : Type u_1\nG : Type u_2\nM : Type u_3\nR : Type u_4\nA : Type u_5\ninst\u271d\u00b9 : Monoid M\ninst\u271d : AddMonoid A\ns\u271d t u : Set M\ns : Submonoid M\n\u22a2 \u2191s * \u2191s = \u2191s"
+  },
+  {
+    "full_name": "Sum.lex_acc_inr",
+    "file_path": ".lake/packages/batteries/Batteries/Data/Sum/Lemmas.lean",
+    "first_state": "\u03b1\u271d : Type u_1\nr : \u03b1\u271d \u2192 \u03b1\u271d \u2192 Prop\n\u03b2\u271d : Type u_2\ns : \u03b2\u271d \u2192 \u03b2\u271d \u2192 Prop\naca : \u2200 (a : \u03b1\u271d), Acc (Lex r s) (inl a)\nb : \u03b2\u271d\nacb : Acc s b\n\u22a2 Acc (Lex r s) (inr b)"
+  },
+  {
+    "full_name": "SzemerediRegularity.initialBound_le_bound",
+    "file_path": "Mathlib/Combinatorics/SimpleGraph/Regularity/Bound.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d\u00b9 : DecidableEq \u03b1\ninst\u271d : Fintype \u03b1\nP : Finpartition univ\nu : Finset \u03b1\n\u03b5 : \u211d\nl : \u2115\n\u22a2 0 < 16 ^ stepBound^[\u230a4 / \u03b5 ^ 5\u230b\u208a] (initialBound \u03b5 l)"
+  },
+  {
+    "full_name": "TopologicalSpace.NoetherianSpace.exists_open_ne_empty_le_irreducibleComponent",
+    "file_path": "Mathlib/Topology/NoetherianSpace.lean",
+    "first_state": "\u03b1 : Type u_1\n\u03b2 : Type u_2\ninst\u271d\u00b2 : TopologicalSpace \u03b1\ninst\u271d\u00b9 : TopologicalSpace \u03b2\ninst\u271d : NoetherianSpace \u03b1\nZ : Set \u03b1\nH : Z \u2208 irreducibleComponents \u03b1\n\u22a2 \u2203 o, IsOpen o \u2227 o \u2260 \u2205 \u2227 o \u2264 Z"
+  },
+  {
+    "full_name": "ULower.up_down",
+    "file_path": "Mathlib/Logic/Encodable/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\ninst\u271d : Encodable \u03b1\na : \u03b1\n\u22a2 (down a).up = a"
+  },
+  {
+    "full_name": "Units.mul_right_eq_zero",
+    "file_path": "Mathlib/Algebra/GroupWithZero/Units/Basic.lean",
+    "first_state": "\u03b1 : Type u_1\nM\u2080 : Type u_2\nG\u2080 : Type u_3\nM\u2080' : Type u_4\nG\u2080' : Type u_5\nF : Type u_6\nF' : Type u_7\ninst\u271d : MonoidWithZero M\u2080\nu : M\u2080\u02e3\na : M\u2080\nh : \u2191u * a = 0\n\u22a2 a = 0"
+  },
+  {
+    "full_name": "Vector.mapAccumr_snoc",
+    "file_path": "Mathlib/Data/Vector/Snoc.lean",
+    "first_state": "\u03b1 : Type u_2\nn : \u2115\nxs : Vector \u03b1 n\n\u03b1\u271d : Type\n\u03b2\u271d : Type u_1\nf : \u03b1 \u2192 \u03b1\u271d \u2192 \u03b1\u271d \u00d7 \u03b2\u271d\nx : \u03b1\ns : \u03b1\u271d\n\u22a2 mapAccumr f (xs.snoc x) s =\n    let q := f x s;\n    let r := mapAccumr f xs q.1;\n    (r.1, r.2.snoc q.2)"
+  }
+]

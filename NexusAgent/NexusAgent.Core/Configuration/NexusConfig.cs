@@ -41,15 +41,23 @@ public sealed class NexusConfig
     public string OllamaBaseUrl { get; set; } = "http://localhost:11434";
     public string QwenModelTag { get; set; } = "qwen3.6:35b-a3b";
 
-    // ---- LLM: Qwen cloud / Tier 3 (DashScope international) ----
+    // ---- LLM: Qwen cloud / Tier 3 + gate juror (DashScope international) ----
     // Pricing: $3.23/M input, $0.32/M cached, $9.58/M output (May 2026)
+    // Prefix-caching brings gate classification to ~$0.32/M — 10× cheaper on repeated prefixes.
     public string DashScopeBaseUrl { get; set; } = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     public string DashScopeApiKey { get; set; } = "";
-    public string QwenCloudModelTag { get; set; } = "qwen-max";
+    public string QwenCloudModelTag { get; set; } = "qwen3.7-max";
 
     // ---- LLM: DeepSeek Flash / Tier 2 (cloud API) ----
     public string DeepSeekBaseUrl { get; set; } = "https://api.deepseek.com/v1";
     public string DeepSeekApiKey { get; set; } = "";
+
+    // ---- LLM: Gemini (Google AI Studio, gate juror) ----
+    // OpenAI-compatible endpoint; free tier on AI Studio.
+    // Env var GOOGLE_API_KEY is shared with FSDE — same shell setup covers both projects.
+    public string GeminiBaseUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta/openai";
+    public string GeminiModel { get; set; } = "gemini-2.5-flash";
+    public string GoogleApiKey { get; set; } = "";
 
     // ---- Encoder ----
     public string TacticVocabPath { get; set; } = "data/tactics_vocab.json";
@@ -66,6 +74,11 @@ public sealed class NexusConfig
         // DeepSeek — reuse the same var name as FSDE so one shell setup covers both projects
         DeepSeekApiKey     = Env("DEEPSEEK_API_KEY",         DeepSeekApiKey);
         DeepSeekBaseUrl    = Env("NEXUS_DEEPSEEK_BASE_URL",  DeepSeekBaseUrl);
+
+        // Gemini — reuse GOOGLE_API_KEY shared with FSDE
+        GoogleApiKey       = Env("GOOGLE_API_KEY",           GoogleApiKey);
+        GeminiBaseUrl      = Env("NEXUS_GEMINI_BASE_URL",    GeminiBaseUrl);
+        GeminiModel        = Env("NEXUS_GEMINI_MODEL",       GeminiModel);
 
         // DashScope / Qwen cloud (Tier 3)
         DashScopeApiKey    = Env("DASHSCOPE_API_KEY",        DashScopeApiKey);

@@ -15,7 +15,7 @@ using NexusAgent.Core.Safety;
 namespace NexusAgent.Tests.Agent;
 
 /// <summary>
-/// Phase 6: NexusProverSubagent — 4 tests (episode loop with mocked dependencies).
+/// Phase 6: NexusProverSubagent — 5 tests (episode loop with mocked dependencies).
 /// </summary>
 public sealed class NexusProverSubagentTests
 {
@@ -31,7 +31,7 @@ public sealed class NexusProverSubagentTests
         var config = Options.Create(new NexusConfig { TacticVocabPath = "does_not_exist.json" });
         var encoder = new ProofStateEncoder(config, NullLogger<ProofStateEncoder>.Instance);
 
-        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_QwenLocal);
+        _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
         _flash.SetupGet(c => c.Tier).Returns(LlmTier.Tier2_DeepSeekFlash);
         _pro.SetupGet(c => c.Tier).Returns(LlmTier.Tier3_PremiumCloud);
 
@@ -39,6 +39,10 @@ public sealed class NexusProverSubagentTests
               .ReturnsAsync(Array.Empty<FossilMatch>() as IReadOnlyList<FossilMatch>);
         _neo4j.Setup(n => n.NearbyLandmarksAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(Array.Empty<ProofLandmark>() as IReadOnlyList<ProofLandmark>);
+        _neo4j.Setup(n => n.NearbySolvedLandmarksAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(Array.Empty<ProofLandmark>() as IReadOnlyList<ProofLandmark>);
+        _neo4j.Setup(n => n.ShortestSuccessfulPathAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync((IReadOnlyList<string>?)null);
         _neo4j.Setup(n => n.UpsertLandmarkAsync(It.IsAny<ProofLandmark>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync((ProofLandmark lm, CancellationToken _) => lm);
         _neo4j.Setup(n => n.RecordTransitionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TransitionOutcome>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -56,7 +60,7 @@ public sealed class NexusProverSubagentTests
         var promptBuilder = new PromptBuilder();
 
         _agent = new NexusProverSubagent(
-            _lean.Object, router, fossilizer, gate, cartographer, encoder,
+            _lean.Object, router, fossilizer, gate, cartographer, _neo4j.Object, encoder,
             promptBuilder, NullLogger<NexusProverSubagent>.Instance);
     }
 
@@ -64,7 +68,7 @@ public sealed class NexusProverSubagentTests
         ProblemId: "test-problem",
         ProblemStatement: "Prove 1 + 1 = 2",
         DomainTag: "algebra",
-        InitialSketch: "theorem t : 1 + 1 = 2 := by sorry",
+        InitialSketch: "theorem target_main : 1 + 1 = 2 := by sorry",
         EpisodeIndex: 0,
         EpisodeId: "ep0",
         MaxTurns: maxTurns,
@@ -74,7 +78,7 @@ public sealed class NexusProverSubagentTests
     private static LlmResponse MakeLlmResp(string content) => new()
     {
         Content = content,
-        Tier = LlmTier.Tier1_QwenLocal,
+        Tier = LlmTier.Tier1_Cheap,
         InputTokens = 100,
         OutputTokens = 50,
         CachedInputTokens = 0,
@@ -124,7 +128,7 @@ public sealed class NexusProverSubagentTests
              .ReturnsAsync(() => callCount++ == 0 ? SorryResult(1) : Solved);
 
         _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-             .ReturnsAsync(MakeLlmResp("```lean\ntheorem t : 1 + 1 = 2 := by norm_num\n```"));
+               .ReturnsAsync(MakeLlmResp("```lean\ntheorem target_main : 1 + 1 = 2 := by norm_num\n```"));
 
         var result = await _agent.RunEpisodeAsync(MakeCtx(), CancellationToken.None);
 
@@ -138,7 +142,7 @@ public sealed class NexusProverSubagentTests
              .ReturnsAsync(SorryResult(1));
 
         _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-             .ReturnsAsync(MakeLlmResp("```lean\ntheorem t : 1 + 1 = 2 := by sorry\n```"));
+               .ReturnsAsync(MakeLlmResp("```lean\ntheorem target_main : 1 + 1 = 2 := by sorry\n```"));
 
         var result = await _agent.RunEpisodeAsync(MakeCtx(maxTurns: 3), CancellationToken.None);
 
@@ -162,11 +166,30 @@ public sealed class NexusProverSubagentTests
              });
 
         _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-             .ReturnsAsync(MakeLlmResp("```lean\ntheorem t : 1 + 1 = 2 := by norm_num\n```"));
+               .ReturnsAsync(MakeLlmResp("```lean\ntheorem target_main : 1 + 1 = 2 := by norm_num\n```"));
 
         var result = await _agent.RunEpisodeAsync(MakeCtx(maxTurns: 10), CancellationToken.None);
 
         // At least one fossil should have been upserted during progress
         _neo4j.Verify(n => n.UpsertFossilAsync(It.IsAny<ProofFossil>(), It.IsAny<CancellationToken>()), Times.AtLeast(1));
+    }
+
+    [Fact]
+    public async Task RunEpisodeAsync_RepeatedStructuralViolations_ReturnsStructuralGateRejection()
+    {
+        _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(SorryResult(1));
+
+        _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+                         .ReturnsAsync(MakeLlmResp("```lean\ntheorem hacked : 1 + 1 = 2 := by sorry\n```"));
+          _flash.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+                            .ReturnsAsync(MakeLlmResp("```lean\ntheorem hacked : 1 + 1 = 2 := by sorry\n```"));
+        _pro.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(MakeLlmResp("```lean\ntheorem hacked : 1 + 1 = 2 := by sorry\n```"));
+
+        var result = await _agent.RunEpisodeAsync(MakeCtx(maxTurns: 8), CancellationToken.None);
+
+        Assert.Equal(EpisodeOutcome.StructuralGateRejection, result.Outcome);
+        Assert.True(result.TurnsUsed <= 2);
     }
 }

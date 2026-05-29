@@ -73,4 +73,14 @@ public interface INeo4jClient
     /// to regenerate the JSONL cache without re-running <c>buildHypergraph</c>.
     /// </summary>
     Task<IReadOnlyList<HyperedgeRecord>> GetAllHyperedgesAsync(CancellationToken ct);
+
+    // ---- Scan run log ----
+
+    /// <summary>
+    /// Persist one complete <c>scan-hg</c> execution to Neo4j.
+    /// Creates <c>:HgScanRun</c> and <c>:HgGoalResult</c> nodes
+    /// linked by <c>(:HgScanRun)-[:HAS_RESULT]-&gt;(:HgGoalResult)</c>.
+    /// Idempotent on <see cref="HgScanRun.Id"/>.
+    /// </summary>
+    Task UpsertScanRunAsync(HgScanRun run, CancellationToken ct);
 }
