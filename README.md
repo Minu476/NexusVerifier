@@ -1,4 +1,4 @@
-# DeepMind Nexus Challenge
+# NexusVerifier
 
 > **NexusAgent** is a graph-augmented Lean 4 verification pipeline for evaluating, filtering, and indexing formally verified proof artifacts from the [Formal Conjectures](https://github.com/google-deepmind/formal-conjectures) benchmark corpus (arXiv:[2605.13171](https://arxiv.org/abs/2605.13171)).
 

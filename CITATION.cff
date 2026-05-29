@@ -13,7 +13,7 @@ authors:
     given-names: Nasser
 date-released: "2026-05-29"
 license: Apache-2.0
-repository-code: "https://github.com/Minu476/DeepMind-Nexus-Challenge"
+repository-code: "https://github.com/Minu476/NexusVerifier"
 keywords:
   - lean4
   - formal verification

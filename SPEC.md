@@ -1,4 +1,4 @@
-# DeepMind Nexus Challenge
+# NexusVerifier
 ### Rich Learning V2 Graph-Augmented Formal Proof Search
 
 **Owner:** Nasser Towfigh — Rich Learning Inc., West Vancouver BC  
