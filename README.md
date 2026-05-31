@@ -177,6 +177,50 @@ Expected: `Done: 6 passed, 3 rejected, 1 excluded (holdout).`
 
 ---
 
+## Benchmark results — Proof search (Phase 8 & 9)
+
+NexusAgent also runs as an **active proof-search agent**: given a theorem statement from the
+FC corpus, it attempts to produce a sorry-free Lean 4 proof using its graph-guided planner
+and LLM tiers. Results below are from May 2026 benchmark runs; full telemetry
+(per-problem outcomes, cost, turn counts, fossil hits) is in
+[`data/results/`](data/results/) and summarised in
+[`SOLVED_PROBLEMS.md`](SOLVED_PROBLEMS.md).
+
+> **Terminology:** *Compiled* = Lean accepted the file (may include `sorry`).
+> *Sorry-free* = axiom closure contains no `sorryAx`; the proof is mechanically
+> complete. All sorry-free proofs were verified by `#print axioms` inside the pipeline.
+
+### Phase 8 — `erdos_phase8/` (10 problems)
+
+| Metric | Value |
+|--------|-------|
+| Problems attempted | 10 |
+| Compiled (Lean accepts file) | **10 / 10** |
+| **Sorry-free proofs** | **7 / 10** |
+| Sorry-bearing (compiled, not complete) | 3 / 10 |
+| Total LLM cost | $0.44 |
+
+Sorry-free: #109 (Erdős sumset conjecture), #139 (Szemerédi's theorem), #194, #219 (Green–Tao),
+#228 (flat Littlewood polynomials), #239, #250.
+
+### Phase 9 — `erdos_phase9_ams5/` (66 problems, AMS 5 corpus)
+
+| Metric | Value |
+|--------|-------|
+| Problems attempted | 66 |
+| Compiled (Lean accepts file) | **53 / 66 (80%)** |
+| **Sorry-free proofs** | **43 / 66 (65%)** |
+| Aborted | 12 |
+| Budget exhausted | 1 |
+| Total LLM cost | $4.81 |
+
+See [`SOLVED_PROBLEMS.md`](SOLVED_PROBLEMS.md) for per-problem mathematical
+descriptions of the 15 highlight results from Phase 8–9, and
+[`data/results/`](data/results/) for HTML and JSON reports with full per-problem
+telemetry.
+
+---
+
 ## Verification policy
 
 The axiom policy is controlled by `NEXUS_PARTS_NATIVE_DECIDE`:
