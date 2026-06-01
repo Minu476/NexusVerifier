@@ -76,26 +76,12 @@ $N > C \cdot 2^n / n$ (the best known unconditional bound).
 
 ---
 
-**#10** — **Primes plus powers of two** (AMS 5/11 · Number Theory/Combinatorics)
-Is there some $k$ such that every integer is the sum of a prime and at most $k$ powers of 2?
-The agent proved **Gallagher's density result**: for any $\varepsilon > 0$ there exists $k(\varepsilon)$
-such that the set of integers representable as prime $+ \leq k$ powers of 2 has lower density
-$\geq 1 - \varepsilon$.
-
----
-
 **#48** — **Totient meets sum-of-divisors** (AMS 11 · Number Theory)
 Are there infinitely many pairs $(n, m)$ with $\varphi(n) = \sigma(m)$?
-**Yes** — the agent proved the set of such pairs is infinite.
-
----
-
-**#107** — **Happy ending / convex polygon problem** (AMS 52 · Combinatorics/Geometry)
-Let $f(n)$ be the minimum number of points in general position in the plane (no three collinear)
-that must contain the vertices of a convex $n$-gon. The Erdős–Szekeres conjecture states
-$f(n) = 2^{n-2} + 1$. The agent proved the foundational existence result: for every $n \geq 3$
-there exists a finite $N$ with the required property (i.e. $\text{cardSet}(n)$ is non-empty),
-enabling the definition of $f(n)$.
+**Yes** — the agent produced a Lean sketch covering most of the argument; one direction
+contains a `sorry` placeholder (the Phase 8 oracle bug silently accepted `sorry` as a
+warning rather than a proof gap). The core construction is valid but the proof is not
+fully formal.
 
 ---
 
@@ -115,7 +101,10 @@ has size $o(N)$. The agent formally proved $r_k(N)/N \to 0$ for all $k > 1$.
 **#194** — **Monotone arithmetic progressions in reorderings of ℝ** (AMS 5 · Combinatorics)
 Must every strict total ordering of $\mathbb{R}$ contain a monotone $k$-term arithmetic
 progression for all $k \geq 3$? **No** — the answer is False even for $k = 3$, as shown by
-Ardal, Brown, and Jungić (2011). The agent formally proved this disproof.
+Ardal, Brown, and Jungíč (2011). The agent produced a Lean proof that encodes the
+counterexample existence as an admitted axiom (`axiom h_exists : answer`) sourced from
+[ABJ11]; the surrounding proof structure compiles cleanly but the core claim is not derived
+independently.
 
 ---
 
@@ -123,7 +112,8 @@ Ardal, Brown, and Jungić (2011). The agent formally proved this disproof.
 Do there exist $n$ for which the divisors of $n$ form a covering system that is "as disjoint as
 possible" (any two congruence classes $a_d \pmod{d}$ and $a_{d'} \pmod{d'}$ that intersect must
 have $\gcd(d, d') = 1$)? **No** — Adenwalla (2025) proved no such $n$ exist. The agent
-formally verified this disproof (van Doorn's Lean proof via Aristotle).
+produced a mostly-complete Lean verification of van Doorn’s disproof; a single case in the
+coverage argument uses `sorry` (Phase 8 oracle bug; the gap is non-trivial).
 
 ---
 
@@ -137,7 +127,9 @@ Are there arbitrarily long arithmetic progressions consisting entirely of prime 
 Do degree-$n$ polynomials with coefficients in $\{-1, +1\}$ exist such that
 $|P(z)| \asymp \sqrt{n}$ uniformly on $|z| = 1$?
 **Yes** — proved by Balister, Bollobás, Morris, Sahasrabudhe, and Tiba (2019). The agent
-produced a formal Lean proof of this existence result.
+produced a Lean scaffold that derives the goal from an admitted axiom
+(`axiom BBMST19_proof`) encoding the BBMST19 result; the overall structure is coherent but
+the key existence claim is not independently derived.
 
 ---
 
@@ -149,34 +141,10 @@ the existence of the limit $L$ for all such $f$.
 
 ---
 
-**#248** — **Bounded $\omega(n+k)$ at infinitely many $n$** (AMS 11 · Number Theory)
-Are there infinitely many $n$ such that $\omega(n+k) \leq Ck$ for all $k \geq 1$, where
-$\omega(m)$ is the number of distinct prime divisors of $m$?
-The agent formally proved that such an infinite set exists (for some absolute constant $C > 0$).
-
----
-
 **#250** — **Irrationality of $\sum \sigma(n)/2^n$** (AMS 11 · Number Theory)
 Is $\sum_{n=1}^{\infty} \sigma(n)/2^n$ irrational, where $\sigma(n)$ is the sum of divisors?
 **Yes** — proved by Nesterenko (1996) using modular function methods. The agent formally
 verified this irrationality statement.
-
----
-
-**#1077** — **Balanced dense subgraphs** (AMS 5 · Graph Theory/Combinatorics)
-If a graph $G$ on $n$ vertices has more than $n^{1+\alpha}$ edges, must it contain a
-$D$-balanced subgraph (max degree $\leq D \cdot$ min degree) on $> n^{1-\alpha}$ vertices
-with $> \varepsilon m^{1+\alpha}$ edges? **No** (answer: False) — the agent formally
-disproved this conjecture.
-
----
-
-**#1084** — **Unit-distance pairs among 1-separated points** (AMS 52 · Combinatorics/Geometry)
-Let $f_d(n)$ be the maximum number of unit-distance pairs among $n$ points in $\mathbb{R}^d$
-with all pairwise distances $\geq 1$. The agent formally proved three known results:
-- $f_1(n) = n - 1$
-- $f_2(n) < 3n$ (easy upper bound)
-- $f_2(n) < 3n - c\sqrt{n}$ for some constant $c > 0$ (Erdős's sharper bound)
 
 ---
 
@@ -185,5 +153,14 @@ with all pairwise distances $\geq 1$. The agent formally proved three known resu
 | Solver | Problems | AMS Areas |
 |--------|----------|-----------|
 | DeepMind AlphaProof | 7 (#12, #26, #125, #138, #152, #741, #846) | 5, 11, 52 |
-| Rich-Learning (NexusAgent) | 15 (#1, #10, #48, #107, #109, #139, #194, #204, #219, #228, #239, #248, #250, #1077, #1084) | 5, 11, 12, 41, 52 |
-| **Combined** | **22 distinct problems** | |
+| Rich-Learning (NexusAgent) — clean formal proofs | 6 (#1, #109, #139, #219, #239, #250) | 5, 11 |
+| Rich-Learning (NexusAgent) — axiom-scaffolded | 2 (#194, #228) | 5, 12, 41 |
+| Rich-Learning (NexusAgent) — sorry in proof (Phase 8 oracle bug) | 2 (#48, #204) | 11 |
+| **Combined (clean proofs only)** | **13 distinct problems** | |
+| **Combined (incl. scaffolded/partial)** | **17 distinct problems** | |
+
+> **Note:** Problems #10, #107, #248, #1077, and #1084 were removed from this list.
+> #10, #107, and #1084 were **Aborted** in Phase 9 benchmark runs (many `sorry` steps
+> remaining after budget exhaustion). #248 is an **open problem** — the agent's proof
+> body consists solely of `sorry`. #1077 was **never benchmarked**. All five were
+> incorrectly listed as solved in earlier versions of this document.
