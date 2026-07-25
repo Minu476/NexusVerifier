@@ -1,0 +1,4 @@
+# Runtime telemetry output (regenerated each run; not source)
+eval_summary_topos.json
+eval_telemetry_topos.csv
+train_telemetry_topos.csv

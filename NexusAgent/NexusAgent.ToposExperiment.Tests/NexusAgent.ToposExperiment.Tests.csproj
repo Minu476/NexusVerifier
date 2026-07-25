@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>NexusAgent.ToposExperiment.Tests</RootNamespace>
+    <AssemblyName>NexusAgent.ToposExperiment.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the ToposExperiment project. InternalsVisibleTo below is declared in the main
+         project's csproj so the tests can reach the internal sealed classes (ToposGraphMemory,
+         ToposAppliesAdapter, NexusBackwardChainer, TrainingLoop, EvalHarness). -->
+    <ProjectReference Include="../NexusAgent.ToposExperiment/NexusAgent.ToposExperiment.csproj" />
+  </ItemGroup>
+
+</Project>
