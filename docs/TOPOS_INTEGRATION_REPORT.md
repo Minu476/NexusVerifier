@@ -85,6 +85,65 @@ the synthetic-fixture tests are the always-run structural gate and they pass.
 
 ---
 
+## 2.5 N-ary chainer rewrite — Topos-native, no V2 projection
+
+After the faithful-port milestone landed, the deferred "n-ary chainer rewrite" was done. The
+chainer now reads Topos's **genuine n-ary shape directly** — no V2 `HyperEdge` projection, no
+`IGraphMemory`, no Anchor==Target contortion. A second chain path (`--chain nary`, the default)
+joins the projected path (`--chain projected`) so both can be compared apples-to-apples on the
+same data.
+
+**What changed:**
+- `NarySearch/NaryBackwardChainer.cs` — reads `GetVertexHyperedges(goal)` → `IncidencesFrom(edge)`
+  → filter by role byte. The AND-branch is the edge's after-role members, as many as the tactic
+  produced. No projection.
+- `NarySearch/ToposNativeCreditAssignment.cs` — reinforces a Topos `LearnableEdge` property via
+  `GetProperty → LearnableEdge.Reinforce → SetProperty`. Pure kernel, no `HyperEdge` mutation.
+- `NarySearch/NaryTrainingLoop.cs` + `NaryEvalHarness.cs` — mirror the projected versions but over
+  the kernel directly.
+- `ToposAppliesAdapter.BuildNaryAsync` — returns the kernel + goalHash→Handle map (no
+  `ToposGraphMemory`, no V2 projection).
+- `Program.cs --chain nary|projected` dispatches between the two paths.
+
+**Correctness parity (the load-bearing result):** on the synthetic fixture, the n-ary and
+projected chainers produce **identical** solve outcomes:
+
+| goal | arm | n-ary | projected |
+|---|---|---|---|
+| T2_root | BaselineN | solved, 3 steps, 3 fired | solved, 3 steps, 3 fired |
+| T2_root | BaselineH | solved, 3 steps, 3 fired | solved, 3 steps, 3 fired |
+| T2_root | Learned | solved, 3 steps, 3 fired | solved, 3 steps, 3 fired |
+
+Pinned by `NaryProjectedParityTests` (`[Theory]` over T1 and T2). The n-ary rewrite is a true
+structural improvement with **no behavioral regression** — same search results, no projection
+layer, no V2 cardinality contortion, no reference-stability contract.
+
+**10 new tests pass** (22 total): n-ary ingest count, T1/T2 solve matching projected, junction read
+natively, leaf/timeout, LearnableEdge reinforcement round-trip, n-ary L9 eval-freeze canary,
+2 cross-path parity tests.
+
+### Issue #2 (reference stability) is dissolved by the n-ary path
+
+The faithful-port path's hardest contract — backends must return the same `HyperEdge` instance per
+id or credit assignment silently breaks — **does not exist in the n-ary path**. There's no shared
+mutable object to keep in sync: `LearnableEdge` is an immutable value type, and the kernel is the
+single source of truth. Read-modify-write goes through the kernel every time
+(`GetProperty → Reinforce → SetProperty`), so "the current theta" is always whatever's in the
+kernel. Issue #2 remains a real finding about the V2 `IGraphMemory` contract (recorded below for
+consumers who stay on the projected path), but the n-ary path demonstrates the cleaner pattern:
+immutable values + kernel-as-source-of-truth eliminates the whole class of silent-desync bugs.
+
+### Feature-vector parity (a deliberate simplification, not a regression)
+
+The projected path uses V2's 7-slot `HyperEdge.ThetaParameters` (bias + X0 + X1 + 3 statistic
+slots + 1 structural discriminator). The n-ary path uses a 3-slot `LearnableEdge` (bias + X0 + X1).
+Same two decision-context features (`X0 = tanh(depth/10)`, `X1 = cosine-sim(current, root)`), same
+gradient-ascent math, deliberately fewer feature slots. Reason: the goal was to prove n-ary
+*storage and traversal* work, not to reproduce V2's exact theta representation. This is why
+theta-coverage numbers differ between paths (n-ary: 14.29% trained; projected: 28.57%) — different
+theta shapes, not different learning quality. A future milestone that wants strict theta parity
+could extend `LearnableEdge` to 7 features; the kernel API supports it without change.
+
 ## 3. Issues surfaced (the real payload — for Topos M8)
 
 These are the things that only show up by using Topos against a real consumer. Recorded here for
@@ -106,7 +165,7 @@ documented one-call mechanism doesn't exist. A consumer reading the doc would ex
 `kernel.SetProperty(key, incidence, value)` and find no such API.
 
 ### Issue #2 — Reference-stability contract is undocumented and load-bearing
-**Severity: medium-high (silent failure mode).**
+**Severity: medium-high (silent failure mode). Resolved for the n-ary path — see §2.5.**
 
 This integration depends on a contract that **no interface documents**: a graph-memory backend
 must return the *same `HyperEdge` instance* per id across queries, because `CreditAssignment`
@@ -120,6 +179,12 @@ while doing nothing.
 This is the kind of contract that should be on the interface (`// Implementations MUST return
 reference-stable HyperEdge instances...`) or eliminated by making `HyperEdge` immutable + going
 through an explicit update API. The current shape is a foot-gun.
+
+**Resolution (n-ary path):** the n-ary chainer rewrite (§2.5) eliminates this entire class of bug
+by using Topos's immutable `LearnableEdge` + the kernel as single source of truth — read-modify-
+write goes through the kernel every time, so there's no shared mutable object to desync. Issue #2
+remains valid for any consumer that stays on the projected path / V2 `IGraphMemory`, but the n-ary
+path is the recommended pattern going forward.
 
 ### Issue #3 — Role typing is a free `byte`
 **Severity: low (ergonomic).**
@@ -201,20 +266,28 @@ right key. (This is a Nexus-side finding; recorded for completeness.)
 
 ```bash
 cd NexusVerifier/NexusAgent/NexusAgent.ToposExperiment
-dotnet run -- --fixture synthetic             # zero-dependency structural run
-dotnet run -- --fixture synthetic --episodes 100 --fuel 100   # bigger synthetic run
-# Live Neo4j parity (requires shared Desktop instance + NEXUS_NEO4J_PASSWORD):
-dotnet run -- --fixture neo4j
+
+# N-ary chain (default — Topos-native, no V2 projection):
+dotnet run -- --fixture synthetic                                # zero-dependency structural run
+dotnet run -- --fixture synthetic --chain nary --episodes 100    # bigger n-ary run
+
+# Projected chain (the faithful-port baseline — Topos storage, V2 boundary):
+dotnet run -- --fixture synthetic --chain projected
+
+# Live Neo4j (requires shared Desktop instance + NEXUS_NEO4J_PASSWORD):
+dotnet run -- --fixture neo4j --chain nary
 
 # Tests:
 cd ../NexusAgent.ToposExperiment.Tests
-dotnet test --filter "FullyQualifiedName!~Neo4jParity"   # 12 tests, ~33ms, no external deps
+dotnet test --filter "FullyQualifiedName!~Neo4jParity"   # 22 tests, ~33ms, no external deps
 ```
 
 ## 7. Status
 
-**Done.** Topos is proven as a working storage backend for a second non-RLB domain, purely through
-its public API, with no Topos-side changes. 12 tests pin the load-bearing contracts. Six findings
-recorded for Topos's M8 review. The deferred n-ary chainer rewrite (where Topos's structural
-advantage would actually show at the search level) is the natural next decision, separate from
-this milestone.
+**Done, including the n-ary rewrite.** Topos is proven as a working storage backend for a second
+non-RLB domain, purely through its public API, with no Topos-side changes. The chainer now reads
+Topos's genuine n-ary shape directly (no V2 projection), producing identical search outcomes to
+the projected path on the same data — the structural improvement with zero behavioral regression.
+22 tests pin the load-bearing contracts across both chain paths. Six findings recorded for Topos's
+M8 review, of which issue #2 (reference stability) is dissolved by the n-ary path's immutable-value
++ kernel-as-source-of-truth pattern.

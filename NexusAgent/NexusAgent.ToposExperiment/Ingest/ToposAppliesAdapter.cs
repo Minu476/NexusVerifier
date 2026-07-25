@@ -181,6 +181,93 @@ internal static class ToposAppliesAdapter
         return memory;
     }
 
+    /// <summary>
+    /// Builds the Topos kernel for the n-ary chainer path — no V2 projection, no
+    /// <see cref="ToposGraphMemory"/>. Returns the kernel plus the goalHash→Handle map the n-ary
+    /// chainer needs to resolve goal-hashes to vertices during search.
+    ///
+    /// The kernel-population logic is shared in spirit with <see cref="BuildMemoryAsync"/> (same
+    /// grouping rule, same property names, same role bytes), but kept as a separate method rather
+    /// than refactored to a shared helper. Reason: the projected path is already tested and frozen
+    /// (it's the V2-parity baseline); extracting a shared core risks drifting the projected path's
+    /// behavior, and the population logic is short and stable enough that the duplication cost is
+    /// lower than the coupling cost. The two methods write the same property names
+    /// (<c>tacticId</c>, <c>beforeHash</c>, <c>afterHashes</c>, <c>stats</c>) so the n-ary chainer
+    /// and credit assignment can read either backend's kernel identically.
+    /// </summary>
+    public static Task<NaryKernelBuild> BuildNaryAsync(
+        List<AppliesEdge> edges,
+        CancellationToken ct = default)
+    {
+        var kernel = new HypergraphKernel();
+        var goalHandleByHash = new Dictionary<string, Handle>(StringComparer.Ordinal);
+
+        // Same property names as BuildMemoryAsync — the n-ary chainer/credit read these.
+        var statsProp       = kernel.ResolveProperty<EdgeStatistics>("stats");
+        var tacticIdProp    = kernel.ResolveProperty<string>("tacticId");
+        var beforeHashProp  = kernel.ResolveProperty<string>("beforeHash");
+        var afterHashesProp = kernel.ResolveProperty<string[]>("afterHashes");
+
+        Handle GoalVertexFor(string hash)
+        {
+            if (!goalHandleByHash.TryGetValue(hash, out var h))
+            {
+                h = kernel.CreateVertex();
+                goalHandleByHash[hash] = h;
+            }
+            return h;
+        }
+
+        var groups = edges
+            .GroupBy(e => (e.GoalBeforeHash, e.TacticId), StringTupleComparer.Instance)
+            .ToList();
+
+        Console.WriteLine($"[ToposAppliesAdapter.BuildNary] building {groups.Count:N0} n-ary tactic-edges " +
+                          $"from {edges.Count:N0} APPLIES edges (no V2 projection)…");
+
+        foreach (var group in groups)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var (goalBefore, tacticId) = group.Key;
+            var afterHashes = group
+                .Select(e => e.GoalAfterHash)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(h => h, StringComparer.Ordinal)
+                .ToList();
+
+            int totalCount   = group.Sum(e => e.Count);
+            int totalSuccess = group.Sum(e => e.SuccessSum);
+            double successRate = totalCount > 0 ? (double)totalSuccess / totalCount : 0.0;
+            double confidence  = Math.Tanh(totalCount / 100.0);
+
+            var edgeVertex = kernel.CreateVertex(VertexRoles.Edge);
+            kernel.AddIncidence(edgeVertex, GoalVertexFor(goalBefore), BeforeRole, ordinal: 0);
+            for (int i = 0; i < afterHashes.Count; i++)
+                kernel.AddIncidence(edgeVertex, GoalVertexFor(afterHashes[i]), AfterRole, ordinal: i + 1);
+
+            // The n-ary path uses EdgeStatistics (the LearnableEdge is created lazily by credit
+            // assignment on first reinforcement, so we don't set it here — matches V2's
+            // uninitialized-theta convention).
+            kernel.SetProperty(statsProp, edgeVertex,
+                new EdgeStatistics(Math.Max(1, totalCount), successRate, confidence));
+            kernel.SetProperty(tacticIdProp,    edgeVertex, tacticId);
+            kernel.SetProperty(beforeHashProp,  edgeVertex, goalBefore);
+            kernel.SetProperty(afterHashesProp, edgeVertex, afterHashes.ToArray());
+        }
+
+        Console.WriteLine($"[ToposAppliesAdapter.BuildNary] done. {groups.Count:N0} tactic-edges; " +
+                          $"{kernel.CountVertices()} vertices / {kernel.AllIncidences().Count()} incidences.");
+
+        return Task.FromResult(new NaryKernelBuild(kernel, goalHandleByHash, groups.Count));
+    }
+
+    /// <summary>Result of <see cref="BuildNaryAsync"/>: the kernel + the resolution map the chainer needs.</summary>
+    public sealed record NaryKernelBuild(
+        HypergraphKernel Kernel,
+        Dictionary<string, Handle> GoalHandleByHash,
+        int EdgeCount);
+
     private sealed class StringTupleComparer : IEqualityComparer<(string, string)>
     {
         public static readonly StringTupleComparer Instance = new();
