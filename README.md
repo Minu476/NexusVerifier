@@ -59,6 +59,18 @@ upstream proof stays in scope and citable by name — sound (`#print axioms`
 clean) but not novel. Full write-up, evidence, and a citation-vs-independent
 classification of every solve: [`docs/FC100_GAP_SET_METHODOLOGY.md`](docs/FC100_GAP_SET_METHODOLOGY.md).
 
+**Corrected rerun, against the actual `FC100OpenSet1` corpus:** most of it
+(60/94 found declarations) turned out to use formal-conjectures'
+`answer(sorry)` idiom — the statement itself embeds an unknown-answer
+placeholder, so no proof of it can ever be `sorryAx`-free by construction,
+independent of prover capability. Filtering to the 34 fully-specified "plain"
+open problems and preflighting left 23 genuine famous open conjectures
+(smooth 4D Poincaré, Mandelbrot local connectivity, Littlewood, Gilbreath,
+Selfridge, Grimm, the class number problem, transcendence of π^π^π, …).
+Result: **0/23 solved** — the correct, expected outcome, not a failure.
+This is the number that should be cited for this pipeline's actual
+proof-search capability, not the 28% figure above. Details in the same doc.
+
 ---
 
 ## Why this matters

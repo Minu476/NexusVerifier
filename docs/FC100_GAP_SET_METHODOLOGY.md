@@ -155,3 +155,87 @@ Any future "unsolved gap" experiment must:
    catch citation of a genuinely complete, correctly-provenanced upstream
    proof. The fix for *this* class of leak is corpus selection at
    construction time, not a compile-time check.
+
+## Follow-up: rerunning against the correct corpus (`FC100OpenSet1`)
+
+Recommendation 1 above was carried out the same cycle. Building the corrected
+gap-set surfaced one more thing worth recording before the results: **most of
+`FC100OpenSet1` cannot be used for this methodology at all, by construction.**
+
+### `FC100OpenSet1` has two structurally different kinds of "open"
+
+Of `FC100OpenSet1.lean`'s 100 `decl_name%` entries, 94 resolved to a source
+declaration (6 didn't — dotted-name/grep mismatches, not investigated). Of
+those 94, **60 use formal-conjectures' `answer(sorry)` idiom** — e.g.
+Büchi's problem:
+
+```
+theorem buchi_problem :
+    answer(sorry) ↔ ∃ M : ℕ, 1 ≤ M ∧ IsBuchi M := by
+  sorry
+```
+
+`answer(sorry)` elaborates to a `sorry`-produced placeholder *inside the
+statement itself* — the correct answer (true/false, or a specific bound) is
+unknown, not just the proof. Any proof of a statement shaped like this
+necessarily has `sorryAx` in its axiom closure **no matter how it's proved**,
+because the statement required `sorry` to even typecheck. These are
+structurally inadmissible for a "produce a `sorryAx`-free proof" pipeline —
+not a pipeline limitation, a category mismatch. Only the remaining **34
+"plain" problems** (fully-specified statement, e.g. `buchi_problem_M5 :
+IsBuchi 5 := by sorry`) are valid candidates.
+
+### Corrected construction
+
+For each of the 34 plain candidates: extracted the fully-qualified type via
+`#check @<decl>` against a fresh Lean process (not hand-reconstructed —
+the same class of mistake, guessing a pretty-printed type instead of asking
+Lean for it, has already cost real bugs this cycle), built a fresh
+`theorem g_<Name>_new : <type> := by sorry` stub importing
+`FormalConjectures.Subsets.FC100OpenSet1`, and preflight-compiled each.
+**30/34 type-checked; 23/34 preflight-compiled clean** as fresh sorry stubs.
+The 23 survivors are genuinely famous open problems: the smooth 4-dimensional
+Poincaré conjecture, Mandelbrot set local connectivity (MLC), the (p-adic)
+Littlewood conjecture, Gilbreath's conjecture, Selfridge's conjecture,
+Grimm's conjecture, the class number problem, transcendence of
+$\pi^{\pi^{\pi}}$, and others.
+
+### Result: `nexus bench --source OpenSet1V1 --parallel 8 --max-episodes 2 --max-turns 8`
+
+| Metric | Value |
+|---|---|
+| Problems attempted | 23 |
+| **Solved** | **0** |
+| Aborted | 21 |
+| Budget exhausted | 2 |
+| Timed out | 0 |
+| Total cost | $1.07 |
+| Duration | ~23 min |
+
+Confirmed in `nexusdb` independently of the log: every `MathProblem` node
+under `OpenSet1V1` has `status = "InProgress"` — none reached `Solved`. With
+zero solves there's nothing to spot-check for citation-laundering, which is
+itself the point: **0% is the correct, expected result here**, not a
+regression or a pipeline failure.
+
+Two secondary signals worth recording, since they show the existing defenses
+held up under real pressure rather than simply never being exercised:
+
+- **`Struct rejects: 13`** (42 individual rejection events across turns) —
+  the LLM did attempt reward-hacking moves (renaming/shadowing) once stuck on
+  these genuinely unsolvable problems; `SketchValidator`'s structural gate
+  caught every one. Nothing leaked through as a false "Solved."
+- **`Goal dedup hits: 16`** — `ProofGoalGraph` (this cycle's Topos-backed
+  goal memory) correctly recognized repeated identical stuck-goal states
+  across turns and episodes, which is exactly its intended job.
+
+### Honest before/after
+
+| Corpus | Base-problem "solve rate" | What it actually measured |
+|---|---|---|
+| `FC100SolvedSet1`-derived gap-set, N=8 swarm | 15/54 (28%) | Mostly answer-key citation (§ above) |
+| `FC100OpenSet1`-derived gap-set (this section) | 0/23 (0%) | The prover's actual ability to make progress on real open research problems: none, at the current tier/turn budget |
+
+This is the number that should be cited if this pipeline's proof-search
+capability is ever described publicly — not the 28% figure, which measures
+corpus leakage, not capability.
