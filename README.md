@@ -31,6 +31,34 @@ The FC100 benchmark corpus contains previously solved, non-open mathematical res
 
 **This repository does not claim novel proofs of open Erdős problems.**
 
+### Pipeline hardening (this cycle)
+
+Running FC100 problems through `NexusProverSubagent` surfaced and fixed four
+real false-positive/reward-hacking gaps in the prover pipeline itself:
+
+1. A `LeanOracle` compile check that could report `Compiled=true` on output
+   Lean had actually rejected (`||` vs `&&` logic error, plus a stale error
+   regex against a newer Lean diagnostic format).
+2. A `SketchValidator` structural gate that could be defeated by substring
+   name matching or shadowing the original declaration with a new `def`.
+3. Sorry-citation-laundering: citing an already-`sorry`'d declaration
+   compiles clean with `SorryCount=0` and no warning at the citing site —
+   only `#print axioms` reveals the inherited `sorryAx`. `LeanOracle` now
+   runs that check whenever a sketch looks fully proved.
+4. A stale DeepSeek model-name mapping causing silent API failures.
+
+### Benchmark corpus caveat
+
+A follow-up audit found a fifth, distinct issue — not a pipeline bug, but a
+**corpus-selection error** in the ad-hoc "gap-set" experiments used to test
+whether multi-sample search helps solve rate: the candidate problems were
+built from `FC100SolvedSet1` (upstream's curated *already-solved* corpus)
+instead of `FC100OpenSet1` (the actual open-problems corpus). Because the
+reconstructed sketches still import the original file, the complete
+upstream proof stays in scope and citable by name — sound (`#print axioms`
+clean) but not novel. Full write-up, evidence, and a citation-vs-independent
+classification of every solve: [`docs/FC100_GAP_SET_METHODOLOGY.md`](docs/FC100_GAP_SET_METHODOLOGY.md).
+
 ---
 
 ## Why this matters
@@ -88,6 +116,30 @@ between related theorems originating from the same benchmark problem file.
 
 ---
 
+## Hypergraph integration (Topos)
+
+`NexusAgent.Core` depends on [Topos](https://github.com/Minu476/Topos)
+(a typed-property hypergraph library, vendored as a git submodule at
+`external/Topos`) as its representation for two independent graph-native
+subsystems:
+
+- **AND-OR backward chainer** — the proof-search planner's candidate-lemma
+  expansion is backed by a real `HypergraphKernel` instance, not a
+  hand-rolled linked structure.
+- **`ProofGoalGraph`** — per-`SolveAsync`-run memory of proof goals and
+  tactic attempts (`NexusAgent.Core/Planning/ProofGoalGraph.cs`). Goal
+  vertices and tactic-attempt edges are recorded as the prover explores, so
+  the LLM prompt can show failed-attempt history and sibling-subgoal
+  structure for the goals it's currently working on, instead of having zero
+  memory of what already failed. Purely additive prompt context — it never
+  influences `Compiled`/`SorryCount`/`IsFullyProved`/the structural gate.
+
+Both are ephemeral, per-run local state (`NexusOrchestrator` and
+`NexusProverSubagent` are DI singletons `nexus bench` calls concurrently
+across different problems) — no cross-run persistence yet.
+
+---
+
 ## Stack
 
 | Layer | Technology |
@@ -96,7 +148,7 @@ between related theorems originating from the same benchmark problem file.
 | Proof verification | `lake env lean` + `#print axioms` |
 | Graph backend | Neo4j 5 (Community via Docker; Enterprise locally) |
 | Agent pipeline | C# / .NET 10 |
-| Tests | 96 unit tests (xUnit) |
+| Tests | 122 unit tests (xUnit) |
 | Container | Docker (multi-stage, ~1.6 GB) |
 
 ### Reproducibility
@@ -115,6 +167,10 @@ Verified with:
 ### Prerequisites
 
 ```bash
+# 0. This repo has a git submodule (external/Topos) — either clone with
+#    --recurse-submodules, or if already cloned:
+git submodule update --init --recursive
+
 # 1. Clone and build the formal-conjectures project (downloads ~1 GB Mathlib)
 git clone https://github.com/google-deepmind/formal-conjectures
 cd formal-conjectures
@@ -268,7 +324,8 @@ reported alongside the verification result, not as a sub-grade of it.
 cd NexusAgent
 dotnet build NexusAgent.sln
 
-# Run all unit tests (96 tests, no external deps)
+# Run all unit tests (122 tests; 3 in ProofFossilizerTests require a
+# local Neo4j instance and are not yet tagged Category=Integration)
 dotnet test NexusAgent.Tests/NexusAgent.Tests.csproj \
   --filter "Category!=Integration" -v q
 ```
@@ -280,13 +337,16 @@ dotnet test NexusAgent.Tests/NexusAgent.Tests.csproj \
 ```
 NexusAgent/
   NexusAgent.Core/            # Configuration, Neo4j client, LeanOracle, planning
+    Planning/ProofGoalGraph.cs #   Topos-backed per-run goal/attempt memory
   NexusAgent.Cli/             # CLI entry point (ingest-parts, bench, …)
   NexusAgent.VerifiedParts/   # AxiomChecker, VerifiedPartIngestor, holdout logic
   NexusAgent.MathlibIngestor/ # Mathlib tactic graph ingestor
-  NexusAgent.Tests/           # 96 unit tests (xUnit)
+  NexusAgent.Tests/           # 122 unit tests (xUnit)
+external/Topos/               # git submodule — hypergraph backend (see above)
 formal-conjectures/           # Separate clone of google-deepmind/formal-conjectures (not a submodule)
 data/                         # Benchmark input files and results
-docs/                         # Architecture notes, Neo4j schema, Cypher queries
+docs/                         # Architecture notes, Neo4j schema, Cypher queries,
+                               # FC100_GAP_SET_METHODOLOGY.md
 ```
 
 ---
