@@ -103,6 +103,8 @@ Evaluated on 10 sampled parts from the
 | **Rejected** | 3 | Proof depends on native compilation axioms (`decide +native`) |
 | **Excluded** | 0 (1 with holdout) | Removed by declaration-family holdout policy |
 
+*Re-verified 2026-07-26 against the fixed pipeline (post [#1](https://github.com/Minu476/NexusVerifier/pull/1)/[#2](https://github.com/Minu476/NexusVerifier/pull/2)) — identical result. This gate runs `AxiomChecker`, which launches Lean directly rather than going through `LeanOracle`, so it was never exposed to the false-positive compile check fixed in #1.*
+
 **Holdout test:** Excluding `Erdos1074.erdos_1074.variants.EHSNumbers_init`
 automatically excludes `erdos_1074.variants.mem_pillaiPrimes` (same parent `erdos1074`)
 — confirmed `6 passed, 3 rejected, 1 excluded`.
