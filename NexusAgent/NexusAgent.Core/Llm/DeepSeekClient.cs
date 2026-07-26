@@ -14,13 +14,15 @@ namespace NexusAgent.Core.Llm;
 /// DeepSeek client. Uses the OpenAI-compatible chat completions endpoint.
 /// Same client class handles both tiers — the model id is set per instance.
 ///
-/// Valid model names (May 2026):
-///   deepseek-chat     — DeepSeek-V3, fast general coding  (Tier 1 + Tier 2)
-///   deepseek-reasoner — DeepSeek-R1, complex reasoning    (Tier 3)
+/// Valid model names (confirmed 2026-07-25 — DeepSeek retired the deepseek-chat/
+/// deepseek-reasoner names, API now rejects them with a 400):
+///   deepseek-v4-flash — fast general coding  (Tier 1 + Tier 2)
+///   deepseek-v4-pro   — complex reasoning    (Tier 3)
 ///
-/// Pricing (per million tokens, USD, approximate):
-///   deepseek-chat:     $0.27/M input (cache miss), $0.07/M cached, $1.10/M output
-///   deepseek-reasoner: $0.55/M input (cache miss), $0.14/M cached, $2.19/M output
+/// Pricing (per million tokens, USD, approximate — carried over from the old
+/// deepseek-chat/deepseek-reasoner tiers, NOT reconfirmed for v4-flash/v4-pro):
+///   deepseek-v4-flash: $0.27/M input (cache miss), $0.07/M cached, $1.10/M output
+///   deepseek-v4-pro:   $0.55/M input (cache miss), $0.14/M cached, $2.19/M output
 ///
 /// Cache hit pricing is ~4x cheaper. Our prompts are designed for prefix-cache
 /// hits — the system prompt + sketch prefix is stable across turns of an episode.
@@ -63,7 +65,7 @@ public sealed class DeepSeekClient : ILlmClient
         HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
         => new(http, config.Value, log,
             LlmTier.Tier1_Cheap,
-            "deepseek-chat",
+            "deepseek-v4-flash",
             inputPrice: 0.27m,
             cachedInputPrice: 0.07m,
             outputPrice: 1.10m);
@@ -72,7 +74,7 @@ public sealed class DeepSeekClient : ILlmClient
         HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
         => new(http, config.Value, log,
             LlmTier.Tier2_DeepSeekFlash,
-            "deepseek-chat",
+            "deepseek-v4-flash",
             inputPrice: 0.27m,
             cachedInputPrice: 0.07m,
             outputPrice: 1.10m);
@@ -81,7 +83,7 @@ public sealed class DeepSeekClient : ILlmClient
         HttpClient http, IOptions<NexusConfig> config, ILogger<DeepSeekClient> log)
         => new(http, config.Value, log,
             LlmTier.Tier3_PremiumCloud,
-            "deepseek-reasoner",
+            "deepseek-v4-pro",
             inputPrice: 0.55m,
             cachedInputPrice: 0.14m,
             outputPrice: 2.19m);
@@ -93,7 +95,7 @@ public sealed class DeepSeekClient : ILlmClient
         // deepseek-reasoner's max_tokens budget covers BOTH thinking tokens AND the answer.
         // 2048 is exhausted entirely by the reasoning chain — the model never reaches the
         // answer, so content comes back null. Use at least 8192 for the reasoner model.
-        var effectiveMaxTokens = _modelId == "deepseek-reasoner"
+        var effectiveMaxTokens = _modelId == "deepseek-v4-pro"
             ? Math.Max(request.MaxOutputTokens, 8192)
             : request.MaxOutputTokens;
 

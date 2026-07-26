@@ -179,8 +179,13 @@ public sealed partial class LeanOracle : ILeanOracle
         }
 
         // Lean prints "declaration uses 'sorry'" — that's a warning, not an error.
-        // True compile failure ⇔ exit code ≠ 0 AND error pattern present.
-        var compiled = exitCode == 0 || errors.Count == 0;
+        // True compile success ⇔ exit code = 0 AND no error diagnostics present.
+        // (Previously `||` — that let any failure whose error diagnostics went
+        // unrecognized by ErrorPattern silently pass as compiled=true. Confirmed
+        // exploitable 2026-07-25: a real `exitCode=1` synthInstanceFailed error,
+        // in Lean's `error(code):` format which ErrorPattern didn't match, was
+        // reported as compiled=true with errors=[].)
+        var compiled = exitCode == 0 && errors.Count == 0;
 
         return new LeanResult
         {
@@ -207,10 +212,12 @@ public sealed partial class LeanOracle : ILeanOracle
         return string.Join("\n", text.Split('\n').Select(l => pad + l));
     }
 
-    [GeneratedRegex(@"^.*\.lean:\d+:\d+:\s*error:", RegexOptions.IgnoreCase)]
+    // Matches both the plain `error:` form and the newer `error(diagnostic-code):`
+    // form (e.g. `error(lean.synthInstanceFailed):`) — the parenthesized code is optional.
+    [GeneratedRegex(@"^.*\.lean:\d+:\d+:\s*error(\([^)]*\))?:", RegexOptions.IgnoreCase)]
     private static partial Regex ErrorPattern();
 
-    [GeneratedRegex(@"^.*\.lean:\d+:\d+:\s*warning:", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^.*\.lean:\d+:\d+:\s*warning(\([^)]*\))?:", RegexOptions.IgnoreCase)]
     private static partial Regex WarningPattern();
 
     [GeneratedRegex(@"declaration uses 'sorry'|contains sorry", RegexOptions.IgnoreCase)]
