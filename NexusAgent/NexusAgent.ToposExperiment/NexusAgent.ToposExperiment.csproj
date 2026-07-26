@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>NexusAgent.ToposExperiment</RootNamespace>
+    <AssemblyName>NexusAgent.ToposExperiment</AssemblyName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Topos is GPLv3-free (the kernel has no Neo4j or GPLv3 dependency); this project stays
+         on the Nexus side of the license boundary. Topos.Hypergraph itself references nothing
+         upstream. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Exposes internal sealed classes (ToposGraphMemory, ToposAppliesAdapter,
+         NexusBackwardChainer, TrainingLoop, EvalHarness) to the test project. -->
+    <InternalsVisibleTo Include="NexusAgent.ToposExperiment.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NexusAgent.Core provides NexusConfig + the Neo4j driver infrastructure that RlbGraphLoader
+         (reused here verbatim from the V2 experiment) depends on. -->
+    <ProjectReference Include="../NexusAgent.Core/NexusAgent.Core.csproj" />
+
+    <!-- RichLearning.V2 pinned at v2-e1-305 (tag e7955f86). Read-only reference: this project consumes
+         V2's IGraphMemory interface + HyperEdge/HyperEdgeMember/HyperEdgeRole/TrajectoryDag types
+         but makes NO source changes to V2. Same pinned dependency as NexusAgent.RlbExperiment. -->
+    <ProjectReference Include="../../../../projects/rich-learning-base/src/RichLearning.V2/RichLearning.V2.csproj" />
+
+    <!-- Topos: the kernel under test. This is the integration's whole point — a non-RLB second
+         consumer exercising Topos's public API. Path is relative to this csproj. -->
+    <ProjectReference Include="../../../../projects/Topos/src/Topos.Hypergraph/Topos.Hypergraph.csproj" />
+  </ItemGroup>
+
+</Project>

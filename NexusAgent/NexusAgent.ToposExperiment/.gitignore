@@ -1,0 +1,12 @@
+# Runtime telemetry output (regenerated each run; not source)
+eval_summary_topos.json
+eval_telemetry_topos.csv
+train_telemetry_topos.csv
+# N-ary chain runtime artifacts
+train_telemetry_nary.csv
+eval_telemetry_nary.csv
+eval_summary_nary.json
+# Projected chain runtime artifacts (already covered by the older entries, listed for completeness)
+train_telemetry_projected.csv
+eval_telemetry_projected.csv
+eval_summary_projected.json
