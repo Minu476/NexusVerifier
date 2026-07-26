@@ -217,4 +217,37 @@ public sealed class LeanOracleTests : IAsyncLifetime
         Assert.False(result.IsFullyProved,
             "a sketch citing a sorry-backed declaration must not count as fully proved");
     }
+
+    [Fact]
+    public async Task CompileAsync_CitesAlreadySorryDeclarationInsideNamespace_NotFullyProved()
+    {
+        // Regression 2026-07-26: the fix for CitesAlreadySorryDeclaration above
+        // extracted a *bare* theorem name for the #print axioms probe, appended
+        // after the full sketch. FC-corpus-derived sketches commonly wrap their
+        // theorem in `namespace Foo ... end Foo` (matching the original problem
+        // file's structure) — at the point the probe is appended, the bare name
+        // no longer resolves ("unknown constant", not sorryAx), silently
+        // bypassing the whole check. Confirmed live: this exact sketch printed
+        // "unknown constant" for the unqualified probe and was accepted as
+        // "Solved" before qualifying the probe name with its enclosing namespace.
+        var sketch = """
+            import FormalConjectures.Subsets.FC100SolvedSet1
+
+            namespace NamespaceBypassRegression
+
+            theorem cites_sorry_backed_w315 : Green14.W 3 15 = 218 := by
+              exact Green14.W_3_15
+
+            end NamespaceBypassRegression
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.True(result.Compiled, $"Errors: {string.Join("; ", result.Errors)}");
+        Assert.Equal(0, result.SorryCount);
+        Assert.True(result.HasSorryAxiom,
+            "expected the namespace-qualified #print axioms probe to detect the inherited sorryAx");
+        Assert.False(result.IsFullyProved,
+            "a namespace-wrapped sketch citing a sorry-backed declaration must not count as fully proved");
+    }
 }

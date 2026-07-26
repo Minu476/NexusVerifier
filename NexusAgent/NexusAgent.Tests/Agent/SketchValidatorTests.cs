@@ -156,4 +156,60 @@ public class SketchValidatorTests
     {
         Assert.True(SketchValidator.IsStructurallyValid("import Mathlib", "import Mathlib\ntheorem x : True := by trivial"));
     }
+
+    [Fact]
+    public void QualifiedTheoremNamesIn_FlatTheorem_ReturnsBareName()
+    {
+        const string sketch = "theorem g_x_new : True := by sorry";
+        Assert.Equal(["g_x_new"], SketchValidator.QualifiedTheoremNamesIn(sketch));
+    }
+
+    [Fact]
+    public void QualifiedTheoremNamesIn_NamespaceWrapped_PrefixesWithNamespace()
+    {
+        const string sketch = """
+            namespace MyRepro
+            theorem main_thm : True := by sorry
+            end MyRepro
+            """;
+        Assert.Equal(["MyRepro.main_thm"], SketchValidator.QualifiedTheoremNamesIn(sketch));
+    }
+
+    [Fact]
+    public void QualifiedTheoremNamesIn_NestedNamespaces_PrefixesWithFullPath()
+    {
+        const string sketch = """
+            namespace A
+            namespace B
+            theorem foo : True := by trivial
+            end B
+            end A
+            """;
+        Assert.Equal(["A.B.foo"], SketchValidator.QualifiedTheoremNamesIn(sketch));
+    }
+
+    [Fact]
+    public void QualifiedTheoremNamesIn_SectionInsideNamespace_ConsumesEndButNoPrefix()
+    {
+        const string sketch = """
+            namespace A
+            section
+            theorem foo : True := by trivial
+            end
+            end A
+            """;
+        Assert.Equal(["A.foo"], SketchValidator.QualifiedTheoremNamesIn(sketch));
+    }
+
+    [Fact]
+    public void QualifiedTheoremNamesIn_NamespaceThenFlat_OnlyQualifiesWhatsInside()
+    {
+        const string sketch = """
+            namespace A
+            theorem foo : True := by trivial
+            end A
+            theorem bar : True := by trivial
+            """;
+        Assert.Equal(["A.foo", "bar"], SketchValidator.QualifiedTheoremNamesIn(sketch));
+    }
 }

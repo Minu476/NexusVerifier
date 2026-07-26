@@ -80,6 +80,64 @@ internal static class SketchValidator
     internal static IReadOnlyList<string> TheoremNamesIn(string sketch) =>
         TheoremDeclarationsIn(sketch).Select(d => d.Name).Distinct().ToList();
 
+    /// <summary>
+    /// Like <see cref="TheoremNamesIn"/>, but prefixes each name with any
+    /// enclosing <c>namespace</c> blocks. Needed by <see cref="Oracle.LeanOracle"/>'s
+    /// <c>#print axioms</c> probe: that probe is appended after the full sketch
+    /// text, so a bare name declared inside <c>namespace Foo ... end Foo</c> would
+    /// no longer resolve at that point — Lean reports "unknown constant" (no
+    /// <c>sorryAx</c> anywhere in the output) instead of the axiom closure,
+    /// silently bypassing the sorry-citation-laundering check for exactly the
+    /// namespace-wrapped sketches that make up the majority of the FC corpus.
+    /// <c>section</c> blocks consume an <c>end</c> like <c>namespace</c> does but
+    /// contribute no name prefix; tracked with a two-field stack entry so nesting
+    /// stays correctly balanced. Line-anchored regex scan, not a full parser —
+    /// consistent with the rest of this file — so it can be fooled by
+    /// <c>namespace</c>/<c>end</c> text inside a string or block comment, which
+    /// doesn't occur in FC-corpus-derived sketches in practice.
+    /// </summary>
+    internal static IReadOnlyList<string> QualifiedTheoremNamesIn(string sketch)
+    {
+        var events = new List<(int Offset, int Kind, string? Value)>();
+        // Kind: 0 = namespace open, 1 = section open, 2 = end, 3 = theorem decl
+        foreach (Match m in NamespaceOpenRegex.Matches(sketch))
+            events.Add((m.Index, 0, m.Groups[1].Value));
+        foreach (Match m in SectionOpenRegex.Matches(sketch))
+            events.Add((m.Index, 1, null));
+        foreach (Match m in EndRegex.Matches(sketch))
+            events.Add((m.Index, 2, null));
+        foreach (Match m in TheoremRegex.Matches(sketch))
+            events.Add((m.Index, 3, m.Groups[1].Value));
+        events.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+
+        var stack = new List<(bool IsNamespace, string? Name)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<string>();
+
+        foreach (var (_, kind, value) in events)
+        {
+            switch (kind)
+            {
+                case 0: stack.Add((true, value)); break;
+                case 1: stack.Add((false, null)); break;
+                case 2: if (stack.Count > 0) stack.RemoveAt(stack.Count - 1); break;
+                case 3:
+                    var prefix = string.Join('.', stack.Where(s => s.IsNamespace).Select(s => s.Name));
+                    var qualified = prefix.Length == 0 ? value! : $"{prefix}.{value}";
+                    if (seen.Add(qualified)) result.Add(qualified);
+                    break;
+            }
+        }
+        return result;
+    }
+
+    private static readonly Regex NamespaceOpenRegex = new(
+        @"(?m)^\s*namespace\s+([A-Za-z_][\w.]*)", RegexOptions.Compiled);
+    private static readonly Regex SectionOpenRegex = new(
+        @"(?m)^\s*section\b", RegexOptions.Compiled);
+    private static readonly Regex EndRegex = new(
+        @"(?m)^\s*end\b", RegexOptions.Compiled);
+
     internal readonly record struct Declaration(string Name, string Signature);
 
     // Captures the keyword+name, then lazily everything up to the first top-level
