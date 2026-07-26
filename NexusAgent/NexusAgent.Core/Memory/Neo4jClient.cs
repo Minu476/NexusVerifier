@@ -708,6 +708,45 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
+    public async Task<IReadOnlyList<HyperedgeRecord>> GetHyperedgesByOutputAsync(string outputText, CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                """
+                MATCH (e:HyperedgeRecord)
+                WHERE e.output = $output
+                RETURN e.id          AS id,
+                       e.lemmaName   AS lemmaName,
+                       e.inputs      AS inputs,
+                       e.output      AS output,
+                       e.outputHash  AS outputHash,
+                       toString(e.builtAt) AS builtAt,
+                       e.seedRun     AS seedRun
+                LIMIT 10
+                """,
+                new { output = outputText });
+
+            var results = new List<HyperedgeRecord>();
+            await foreach (var rec in cursor)
+            {
+                results.Add(new HyperedgeRecord
+                {
+                    Id         = rec["id"].As<string>(),
+                    LemmaName  = rec["lemmaName"].As<string>(),
+                    Inputs     = rec["inputs"].As<List<object>>()
+                                     .Select(x => x.ToString() ?? "").ToArray(),
+                    Output     = rec["output"].As<string>(),
+                    OutputHash = (ulong)rec["outputHash"].As<long>(),
+                    BuiltAt    = DateTime.Parse(rec["builtAt"].As<string>()),
+                    SeedRun    = rec["seedRun"].As<string>(),
+                });
+            }
+            return results;
+        });
+    }
+
     public async Task UpsertScanRunAsync(HgScanRun run, CancellationToken ct)
     {
         await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));

@@ -71,6 +71,7 @@ public sealed class NexusOrchestratorTests
             _neo4j.Object,
             _lean.Object,
             encoder,
+            new HyperedgeComposer(_neo4j.Object, NullLogger<HyperedgeComposer>.Instance),
             NullLogger<BestFirstGraphPlanner>.Instance);
 
         _orchestrator = new NexusOrchestrator(

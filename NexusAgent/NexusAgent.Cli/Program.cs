@@ -32,9 +32,7 @@ var builder = Host.CreateApplicationBuilder(args);
 // ── Serilog ──────────────────────────────────────────────────────────────────
 // Wire directly in code (no ReadFrom.Configuration assembly scanning) so it
 // works reliably in Release builds. Log file lives next to the binary.
-var logDir = Path.Combine(
-    Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!,
-    "logs");
+var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
 Directory.CreateDirectory(logDir);
 var logFilePath = Path.Combine(logDir, "nexus-.log");
 
@@ -167,6 +165,7 @@ builder.Services.AddSingleton<PromptBuilder>();
 builder.Services.AddSingleton<ProofFossilizer>();
 builder.Services.AddSingleton<HallucinationGate>();
 builder.Services.AddSingleton<ProofCartographer>();
+builder.Services.AddSingleton<HyperedgeComposer>();
 builder.Services.AddSingleton<BestFirstGraphPlanner>();
 builder.Services.AddSingleton<ILeanOracle, LeanOracle>();
 builder.Services.AddSingleton<NexusProverSubagent>();
@@ -580,12 +579,29 @@ static async Task<int> RunSolveAsync(IHost host, string[] args)
     }
     var id = GetFlag(args, "--id") ?? Path.GetFileNameWithoutExtension(file);
     var domain = GetFlag(args, "--domain") ?? "other";
+    var source = GetFlag(args, "--source") ?? "Manual";
     var statement = GetFlag(args, "--statement") ?? "(see file)";
     var sketch = await File.ReadAllTextAsync(file);
+    var maxEpisodes = int.TryParse(GetFlag(args, "--episodes"), out var me) ? me : 3;
+    var maxTurns = int.TryParse(GetFlag(args, "--max-turns"), out var mt) ? mt : 8;
+    var useGraphFirstPlanner = args.Contains("--graph-first", StringComparer.OrdinalIgnoreCase);
+    var useLegacyFallback = !args.Contains("--no-llm-fallback", StringComparer.OrdinalIgnoreCase);
+    var plannerMaxExpansions = int.TryParse(GetFlag(args, "--planner-max-expansions"), out var pme) ? pme : 48;
+    var plannerBranchFactor = int.TryParse(GetFlag(args, "--planner-branch-factor"), out var pbf) ? pbf : 8;
+    var plannerNeighborK = int.TryParse(GetFlag(args, "--planner-neighbor-k"), out var pnk) ? pnk : 12;
 
     var orchestrator = host.Services.GetRequiredService<NexusOrchestrator>();
-    var input = new ProblemInput(id, "Manual", domain, file, statement, sketch);
-    var config = new OrchestratorConfig();
+    var input = new ProblemInput(id, source, domain, file, statement, sketch);
+    var config = new OrchestratorConfig
+    {
+        MaxEpisodes                      = maxEpisodes,
+        MaxTurnsPerEpisode               = maxTurns,
+        UseGraphFirstPlanner             = useGraphFirstPlanner,
+        UseLegacyLlmProverFallback       = useLegacyFallback,
+        PlannerMaxExpansions             = plannerMaxExpansions,
+        PlannerBranchFactor              = plannerBranchFactor,
+        PlannerNeighborK                 = plannerNeighborK,
+    };
 
     var result = await orchestrator.SolveAsync(input, config, CancellationToken.None);
     PrintResult(result);

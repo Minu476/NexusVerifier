@@ -19,18 +19,21 @@ public sealed class BestFirstGraphPlanner
     private readonly INeo4jClient _neo4j;
     private readonly ILeanOracle _lean;
     private readonly ProofStateEncoder _encoder;
+    private readonly HyperedgeComposer? _composer;
     private readonly ILogger<BestFirstGraphPlanner> _log;
 
     public BestFirstGraphPlanner(
         INeo4jClient neo4j,
         ILeanOracle lean,
         ProofStateEncoder encoder,
+        HyperedgeComposer composer,
         ILogger<BestFirstGraphPlanner> log)
     {
-        _neo4j = neo4j;
-        _lean = lean;
-        _encoder = encoder;
-        _log = log;
+        _neo4j    = neo4j;
+        _lean     = lean;
+        _encoder  = encoder;
+        _composer = composer;
+        _log      = log;
     }
 
     public async Task<PlannerRunResult> TrySolveAsync(
@@ -91,6 +94,66 @@ public sealed class BestFirstGraphPlanner
             }
 
             expansions++;
+
+            // Tier 0: AND-join composition from the hyperedge store.
+            // Checks whether the first open goal can be closed directly from stored
+            // HyperedgeRecords without any LLM call. Lean compilation acts as the gate.
+            if (_composer is not null && node.Lean.PendingGoalTexts.Length > 0)
+            {
+                var firstGoal = node.Lean.PendingGoalTexts[0];
+                var derivation = await _composer.TryComposeAsync(firstGoal, maxDepth: 2, ct);
+                if (derivation is not null)
+                {
+                    var composedTactic  = HyperedgeComposer.BuildTacticSketch(derivation);
+                    var composedSketch  = SubstituteFirstSorry(node.Sketch, composedTactic);
+                    var composedResult  = await _lean.CompileAsync(composedSketch, ct);
+
+                    if (composedResult.IsFullyProved)
+                    {
+                        _log.LogInformation(
+                            "[HyperedgeComposer] Solved {Id} at expansion {E} " +
+                            "(derivation depth {D}, tactic: {T})",
+                            problem.Id, expansions, derivation.Depth, composedTactic);
+                        return new PlannerRunResult
+                        {
+                            Solved               = true,
+                            FinalSketch          = composedSketch,
+                            FinalSorryCount      = 0,
+                            Expansions           = expansions,
+                            AcceptedTransitions  = acceptedTransitions + 1,
+                            FrontierCollapsed    = false,
+                            CompileRejects       = compileRejects,
+                            StructuralRejects    = structuralRejects,
+                            CyclePrunes          = cyclePrunes,
+                            DuplicatePrunes      = duplicatePrunes,
+                        };
+                    }
+
+                    // Partially useful: reduces sorry count — push to frontier with
+                    // high priority so it is expanded before unguided proposals.
+                    if (composedResult.Compiled &&
+                        composedResult.SorryCount < node.Lean.SorryCount &&
+                        SketchValidator.IsStructurallyValid(problem.InitialSketch, composedSketch))
+                    {
+                        var composedState = BuildState(composedSketch, composedResult, problem.DomainTag);
+                        var composedHash  = _encoder.ComputeCanonicalStateHash(composedState);
+                        if (!seen.TryGetValue(composedHash, out var existingSorry)
+                            || existingSorry > composedResult.SorryCount)
+                        {
+                            seen[composedHash] = composedResult.SorryCount;
+                            stateVisitCount[composedHash] =
+                                stateVisitCount.TryGetValue(composedHash, out var cv) ? cv + 1 : 1;
+                            acceptedTransitions++;
+                            // Priority = sorry count (lower is better); use 0 depth weight
+                            // so composed nodes sort ahead of same-sorry-count expansions.
+                            frontier.Enqueue(
+                                new PlannerNode(composedSketch, composedResult, composedState,
+                                    composedHash, node.Depth + 1),
+                                priority: composedResult.SorryCount);
+                        }
+                    }
+                }
+            }
 
             var vec = _encoder.Encode(node.State);
             var proposals = await _neo4j.ProposeTacticsFromGoalVectorAsync(

@@ -74,6 +74,14 @@ public interface INeo4jClient
     /// </summary>
     Task<IReadOnlyList<HyperedgeRecord>> GetAllHyperedgesAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Return stored hyperedges whose <c>output</c> text exactly matches
+    /// <paramref name="outputText"/>. Used by <see cref="NexusAgent.Core.Planning.HyperedgeComposer"/>
+    /// for AND-join resolution during proof search.
+    /// Returns at most 10 candidates (multiple edges can prove the same goal via different lemmas).
+    /// </summary>
+    Task<IReadOnlyList<HyperedgeRecord>> GetHyperedgesByOutputAsync(string outputText, CancellationToken ct);
+
     // ---- Scan run log ----
 
     /// <summary>
