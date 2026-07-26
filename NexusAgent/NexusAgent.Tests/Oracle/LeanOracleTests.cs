@@ -104,4 +104,44 @@ public sealed class LeanOracleTests : IAsyncLifetime
         Assert.Same(cached, result);
         _neo4j.Verify(n => n.PutCompileCacheAsync(It.IsAny<string>(), It.IsAny<LeanResult>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task CompileAsync_GenuineProof_NoFalsePositiveFromAxiomCheck()
+    {
+        var sketch = """
+            theorem genuinely_proved : 1 + 1 = 2 := by decide
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.True(result.IsFullyProved, $"Errors: {string.Join("; ", result.Errors)}");
+        Assert.False(result.HasSorryAxiom);
+    }
+
+    [Fact]
+    public async Task CompileAsync_CitesAlreadySorryDeclaration_NotFullyProved()
+    {
+        // Regression 2026-07-25: found running the FC100 gap-set batch through
+        // NexusProverSubagent. A candidate that cites Green14.W_3_15 (itself
+        // `:= by sorry` in FormalConjectures/GreensOpenProblems/14.lean) compiles
+        // clean with SorryCount=0 and prints no "declaration uses 'sorry'"
+        // warning at the citing site — Lean only emits that warning where the
+        // literal `sorry` occurs, not at every downstream use. Only
+        // `#print axioms` reveals the inherited `sorryAx`. Confirmed live: this
+        // exact sketch was accepted as "Solved" before the fix.
+        var sketch = """
+            import FormalConjectures.Subsets.FC100SolvedSet1
+
+            theorem cites_sorry_backed_w315 : Green14.W 3 15 = 218 := by
+              exact Green14.W_3_15
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.True(result.Compiled, $"Errors: {string.Join("; ", result.Errors)}");
+        Assert.Equal(0, result.SorryCount);
+        Assert.True(result.HasSorryAxiom, "expected #print axioms to detect the inherited sorryAx");
+        Assert.False(result.IsFullyProved,
+            "a sketch citing a sorry-backed declaration must not count as fully proved");
+    }
 }
