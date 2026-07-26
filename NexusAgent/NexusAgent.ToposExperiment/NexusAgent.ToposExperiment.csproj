@@ -31,8 +31,11 @@
     <ProjectReference Include="../../../../projects/rich-learning-base/src/RichLearning.V2/RichLearning.V2.csproj" />
 
     <!-- Topos: the kernel under test. This is the integration's whole point — a non-RLB second
-         consumer exercising Topos's public API. Path is relative to this csproj. -->
-    <ProjectReference Include="../../../../projects/Topos/src/Topos.Hypergraph/Topos.Hypergraph.csproj" />
+         consumer exercising Topos's public API. Now a real git submodule at external/Topos
+         (pinned commit, see .gitmodules) rather than a sibling-repo path — the same location
+         NexusAgent.Core/Planning/ProofGoalGraph.cs references, so the solution has one
+         canonical Topos.Hypergraph assembly, not two. -->
+    <ProjectReference Include="../../external/Topos/src/Topos.Hypergraph/Topos.Hypergraph.csproj" />
   </ItemGroup>
 
 </Project>

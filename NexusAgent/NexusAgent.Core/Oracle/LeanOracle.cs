@@ -210,17 +210,35 @@ public sealed partial class LeanOracle : ILeanOracle
             {
                 bool isUnsolvedGoals = UnsolvedGoalsPattern().IsMatch(line);
                 var blockLines = new List<string> { line.Trim() };
+                // For "unsolved goals" blocks specifically, Lean blank-line-separates
+                // multiple goals (each preceded by an optional `case <tag>` header) —
+                // preserve those blank lines here so they can be split back out into
+                // one PendingGoalTexts entry per goal below. General error blocks keep
+                // the existing blank-line-discarding behavior for `errors` (unaffected
+                // by this list — errors.Add below still uses blockLines).
+                var rawGoalLines = isUnsolvedGoals ? new List<string>() : null;
                 while (i + 1 < lines.Length && !IsDiagnosticHeader(lines[i + 1]))
                 {
                     i++;
                     if (!string.IsNullOrWhiteSpace(lines[i]))
                         blockLines.Add(lines[i]);
+                    rawGoalLines?.Add(lines[i]);
                 }
                 errors.Add(string.Join('\n', blockLines));
-                // For "unsolved goals" errors, expose the raw goal text (⊢ …) to the
-                // encoder and prompt's pending-goals section.
-                if (isUnsolvedGoals && blockLines.Count > 1)
-                    pendingGoals.Add(string.Join('\n', blockLines.Skip(1)));
+                // For "unsolved goals" errors, expose each goal's raw text (case tag +
+                // local hypotheses + `⊢ …`) as its own PendingGoalTexts entry, instead
+                // of joining every goal in the block into one string. Confirmed live
+                // 2026-07-26: a `refine ⟨?_, ?_⟩`-style split prints as
+                // "case refine_1\n⊢ P1\n\ncase refine_2\n⊢ P2" — blank-line-separated.
+                // If a future Lean version doesn't blank-line-separate, this falls back
+                // to one entry for the whole block (same as the prior behavior), not a
+                // crash — known limitation, not yet observed in practice.
+                if (isUnsolvedGoals && rawGoalLines is { Count: > 0 })
+                {
+                    foreach (var group in SplitOnBlankLines(rawGoalLines))
+                        if (group.Count > 0)
+                            pendingGoals.Add(string.Join('\n', group));
+                }
             }
             else if (SorryPattern().IsMatch(line))
                 sorryCount++;
@@ -247,6 +265,31 @@ public sealed partial class LeanOracle : ILeanOracle
             CompileTime = elapsed,
             PendingGoalTexts = pendingGoals.ToArray(),
         };
+    }
+
+    /// <summary>Splits a line list into groups separated by blank lines, dropping the
+    /// blank separators themselves and any leading/trailing empty groups.</summary>
+    private static List<List<string>> SplitOnBlankLines(List<string> lines)
+    {
+        var groups = new List<List<string>>();
+        var current = new List<string>();
+        foreach (var l in lines)
+        {
+            if (string.IsNullOrWhiteSpace(l))
+            {
+                if (current.Count > 0)
+                {
+                    groups.Add(current);
+                    current = new List<string>();
+                }
+            }
+            else
+            {
+                current.Add(l);
+            }
+        }
+        if (current.Count > 0) groups.Add(current);
+        return groups;
     }
 
     private static string ComputeSha256(string input)

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -64,7 +65,7 @@ public sealed class NexusProverSubagentTests
             promptBuilder, NullLogger<NexusProverSubagent>.Instance);
     }
 
-    private EpisodeContext MakeCtx(int maxTurns = 5) => new(
+    private EpisodeContext MakeCtx(int maxTurns = 5, ProofGoalGraph? goalGraph = null) => new(
         ProblemId: "test-problem",
         ProblemStatement: "Prove 1 + 1 = 2",
         DomainTag: "algebra",
@@ -73,7 +74,8 @@ public sealed class NexusProverSubagentTests
         EpisodeId: "ep0",
         MaxTurns: maxTurns,
         FossilMatchThreshold: 0.75f,
-        FossilDirectSubstituteThreshold: 0.90f);
+        FossilDirectSubstituteThreshold: 0.90f,
+        GoalGraph: goalGraph ?? new ProofGoalGraph());
 
     private static LlmResponse MakeLlmResp(string content) => new()
     {
@@ -191,5 +193,49 @@ public sealed class NexusProverSubagentTests
 
         Assert.Equal(EpisodeOutcome.StructuralGateRejection, result.Outcome);
         Assert.True(result.TurnsUsed <= 2);
+    }
+
+    [Fact]
+    public async Task RunEpisodeAsync_NonProgressingAttempt_ThenNextPromptIncludesGoalHistory()
+    {
+        // Guards the graph-native proof-state milestone's core payoff: a tactic
+        // that didn't help on a goal should be visible to the LLM on the *next*
+        // turn's prompt, so it isn't blindly repeated.
+        _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(SorryResult(1));
+
+        var capturedRequests = new List<LlmRequest>();
+        _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+             .Returns((LlmRequest req, CancellationToken _) =>
+             {
+                 capturedRequests.Add(req);
+                 return Task.FromResult(MakeLlmResp(
+                     "```lean\ntheorem target_main : 1 + 1 = 2 := by\n  bad_tactic\n  sorry\n```"));
+             });
+
+        await _agent.RunEpisodeAsync(MakeCtx(maxTurns: 3), CancellationToken.None);
+
+        Assert.True(capturedRequests.Count >= 2,
+            $"expected at least 2 LLM turns to compare, got {capturedRequests.Count}");
+        var laterPrompt = capturedRequests[^1].Messages.Single(m => m.Role == "user").Content;
+        Assert.Contains("Goal history", laterPrompt);
+        Assert.Contains("bad_tactic", laterPrompt);
+    }
+
+    [Fact]
+    public void SubstituteFirstSorry_Unchanged_ByteForByte()
+    {
+        // Guards the "don't touch this" constraint from the graph-native
+        // proof-state milestone: the goal-graph enriches the prompt, it must
+        // never change which text position SubstituteFirstSorry targets or how
+        // it splices — direct reflection test of the private static method
+        // rather than an indirect assertion through the whole episode loop.
+        var method = typeof(NexusProverSubagent).GetMethod(
+            "SubstituteFirstSorry", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        var input = "theorem foo : True := by\n  sorry";
+        var result = (string)method.Invoke(null, [input, "trivial"])!;
+
+        Assert.Equal("theorem foo : True := by\n  trivial", result);
     }
 }

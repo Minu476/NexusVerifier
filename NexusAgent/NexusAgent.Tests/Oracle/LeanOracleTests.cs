@@ -119,6 +119,79 @@ public sealed class LeanOracleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CompileAsync_RefineProducesMultipleSubgoals_SplitsIntoOnePendingGoalPerSubgoal()
+    {
+        // Regression 2026-07-26: found while scoping the graph-native proof-state
+        // milestone. Live-captured 2026-07-26 against this exact NEXUS_LEAN_PROJECT:
+        // `refine ⟨?_, ?_, ?_⟩` on a 3-way conjunction printed
+        //   case refine_1
+        //   ⊢ 1 = 1
+        //
+        //   case refine_2
+        //   ⊢ 2 = 2
+        //
+        //   case refine_3
+        //   ⊢ 3 = 3
+        // — three goals, blank-line-separated in one "unsolved goals" diagnostic
+        // block. Before the fix, RemainingGoals/PendingGoalTexts collapsed this to
+        // 1 entry (the whole block joined); it must be 3.
+        var sketch = """
+            example : (1 = 1) ∧ (2 = 2) ∧ (3 = 3) := by
+              refine ⟨?_, ?_, ?_⟩
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.Equal(3, result.RemainingGoals);
+        Assert.Equal(3, result.PendingGoalTexts.Length);
+        Assert.Contains(result.PendingGoalTexts, g => g.Contains("case refine_1") && g.Contains("1 = 1"));
+        Assert.Contains(result.PendingGoalTexts, g => g.Contains("case refine_2") && g.Contains("2 = 2"));
+        Assert.Contains(result.PendingGoalTexts, g => g.Contains("case refine_3") && g.Contains("3 = 3"));
+        // Each entry must contain exactly its own goal, not bleed into siblings.
+        var refine1 = Assert.Single(result.PendingGoalTexts, g => g.Contains("case refine_1"));
+        Assert.DoesNotContain("refine_2", refine1);
+        Assert.DoesNotContain("refine_3", refine1);
+    }
+
+    [Fact]
+    public async Task CompileAsync_ConstructorGoalWithHypotheses_PreservesLocalContextPerGoal()
+    {
+        // Live-captured 2026-07-26 companion fixture: goals with a local context
+        // (hypotheses above the turnstile) split the same way, and each split
+        // entry keeps its own hypotheses rather than losing them.
+        var sketch = """
+            example (n : Nat) (h : n = 5) : (n = 5) ∧ (n + 1 = 6) := by
+              constructor
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.Equal(2, result.PendingGoalTexts.Length);
+        Assert.Contains(result.PendingGoalTexts, g => g.Contains("case left") && g.Contains("⊢ n = 5"));
+        Assert.Contains(result.PendingGoalTexts, g => g.Contains("case right") && g.Contains("⊢ n + 1 = 6"));
+        Assert.All(result.PendingGoalTexts, g => Assert.Contains("h : n = 5", g));
+    }
+
+    [Fact]
+    public async Task CompileAsync_MultiGoalFix_DoesNotAffectCompiledComputation()
+    {
+        // Guard test: the LeanOracle.ParseLeanOutput method touched for the
+        // multi-goal split is the same method that had the exitCode/errors.Count
+        // false-positive bug fixed earlier tonight (#1). Confirm Compiled/errors
+        // for a genuinely failing sketch are unaffected by the goal-splitting change.
+        var sketch = """
+            example : (1 = 1) ∧ (2 = 2) := by
+              refine ⟨?_, ?_⟩
+            """;
+
+        var result = await _oracle.CompileAsync(sketch, CancellationToken.None);
+
+        Assert.False(result.Compiled, "an unsolved-goals sketch must still be reported as not compiled");
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(0, result.SorryCount); // no literal 'sorry' — unsolved goals is a distinct signal
+    }
+
+    [Fact]
     public async Task CompileAsync_CitesAlreadySorryDeclaration_NotFullyProved()
     {
         // Regression 2026-07-25: found running the FC100 gap-set batch through

@@ -116,6 +116,8 @@ internal static class SketchValidator
 
     private static readonly Regex WhitespaceRun = new(@"\s+", RegexOptions.Compiled);
 
-    private static string NormalizeWhitespace(string s) =>
+    /// <summary>Internal (not private) so <see cref="Planning.ProofGoalGraph"/> can reuse the
+    /// same normalization for goal-text hashing — one whitespace convention, not two.</summary>
+    internal static string NormalizeWhitespace(string s) =>
         WhitespaceRun.Replace(s, " ").Trim();
 }

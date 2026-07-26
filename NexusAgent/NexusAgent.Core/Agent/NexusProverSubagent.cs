@@ -148,6 +148,8 @@ public sealed class NexusProverSubagent
                                 tacticSequence: ExtractTacticDiff(sketch, replaySketch),
                                 replayOutcome, episodeId: ctx.EpisodeId, ct);
                             await _cartographer.ObserveAsync(replayState, ctx.ProblemId, replayOutcome, ct);
+                            RecordGoalGraphAttempt(ctx, prevState, replayState,
+                                ExtractTacticDiff(sketch, replaySketch), replayOutcome);
                             if (replayResult.SorryCount < bestSorryCount)
                             {
                                 await _fossilizer.FossilizeAsync(
@@ -224,6 +226,8 @@ public sealed class NexusProverSubagent
                             episodeId: ctx.EpisodeId,
                             ct);
                         await _cartographer.ObserveAsync(candidateState, ctx.ProblemId, candidateOutcome, ct);
+                        RecordGoalGraphAttempt(ctx, prevState, candidateState,
+                            proposal.TacticText, candidateOutcome);
 
                         if (candidateResult.SorryCount < bestSorryCount)
                         {
@@ -254,6 +258,19 @@ public sealed class NexusProverSubagent
                             candidateResult.SorryCount);
                         graphReplaySucceeded = true;
                         break;
+                    }
+
+                    // Reached only when this candidate did NOT succeed (the success branch
+                    // above always breaks). Record the failure so a repeat proposal of the
+                    // same tactic on the same goal shows up in FailedAttemptsFor — this tier
+                    // otherwise discards deterministic-probe failures silently (no cartographer
+                    // call for them either), which is exactly the "keeps retrying known
+                    // dead ends" gap the goal-graph exists to close.
+                    if (prevState.PendingGoals.Length > 0)
+                    {
+                        var beforeId = ctx.GoalGraph.GetOrAddGoal(prevState.PendingGoals[0]);
+                        ctx.GoalGraph.RecordAttempt(beforeId, proposal.TacticText, [],
+                            candidateResult.Compiled ? AttemptOutcome.CompiledNoProgress : AttemptOutcome.Failed);
                     }
 
                     if (deterministicTried >= 2)
@@ -334,7 +351,8 @@ public sealed class NexusProverSubagent
                     var request = _promptBuilder.BuildProverRequest(
                         ctx.ProblemStatement, sketch, prevState,
                         cartoHint, fossilCandidates, warnings,
-                        structuralViolationWarning: structuralViolationWarning);
+                        structuralViolationWarning: structuralViolationWarning,
+                        goalGraph: ctx.GoalGraph);
                     structuralViolationWarning = null; // consumed
 
                     var routerCtx = new RouterContext
@@ -380,7 +398,8 @@ public sealed class NexusProverSubagent
                 var request = _promptBuilder.BuildProverRequest(
                     ctx.ProblemStatement, sketch, prevState,
                     cartoHint, fossilCandidates, warnings,
-                    structuralViolationWarning: structuralViolationWarning);
+                    structuralViolationWarning: structuralViolationWarning,
+                    goalGraph: ctx.GoalGraph);
                 structuralViolationWarning = null; // consumed
 
                 var routerCtx = new RouterContext
@@ -479,6 +498,10 @@ public sealed class NexusProverSubagent
 
             // ---- 6) Determine outcome ----
             var outcome = ClassifyOutcome(lastResult, compileResult);
+            // Record after the structural gate (already passed, above) has already run —
+            // this is memory of an already-trusted outcome, never an input to trust.
+            RecordGoalGraphAttempt(ctx, prevState, newState,
+                ExtractTacticDiff(sketch, updatedSketch), outcome);
 
             // If a direct fossil substitution made no progress, blacklist the fossil and revert.
             // This prevents the same fossil being retried every turn in a tight loop.
@@ -538,6 +561,41 @@ public sealed class NexusProverSubagent
 
     private static float AvgSim(List<float> sims) =>
         sims.Count > 0 ? sims.Average() : 0f;
+
+    /// <summary>
+    /// Records one tactic attempt into <see cref="EpisodeContext.GoalGraph"/> —
+    /// additive memory only, called after the outcome is already known and never
+    /// consulted by anything on the accept/reject path. "Before" goal is a
+    /// heuristic: <c>prevState.PendingGoals[0]</c>, the same goal
+    /// <c>SubstituteFirstSorry</c> actually targets for the direct-substitution
+    /// tiers, and the first goal shown to the LLM for the prompt-driven tier —
+    /// not a guaranteed-exact attribution when several goals are pending at once,
+    /// but the best available signal without a full goal-position tracker (a
+    /// larger change, deferred). "After" goals are the set difference —
+    /// <paramref name="newState"/>'s pending goals that weren't already pending
+    /// before this attempt — so a goal that was already open and untouched isn't
+    /// misrecorded as newly produced.
+    /// </summary>
+    private static void RecordGoalGraphAttempt(
+        EpisodeContext ctx, ProofState prevState, ProofState newState,
+        string tacticText, TransitionOutcome outcome)
+    {
+        if (prevState.PendingGoals.Length == 0) return; // nothing to attach the attempt to
+        var beforeId = ctx.GoalGraph.GetOrAddGoal(prevState.PendingGoals[0]);
+        var priorGoals = new HashSet<string>(prevState.PendingGoals, StringComparer.Ordinal);
+        var afterIds = newState.PendingGoals
+            .Where(g => !priorGoals.Contains(g))
+            .Select(ctx.GoalGraph.GetOrAddGoal)
+            .ToList();
+        ctx.GoalGraph.RecordAttempt(beforeId, tacticText, afterIds, ToAttemptOutcome(outcome));
+    }
+
+    private static AttemptOutcome ToAttemptOutcome(TransitionOutcome outcome) => outcome switch
+    {
+        TransitionOutcome.DeadEnd => AttemptOutcome.Failed,
+        TransitionOutcome.Stalled => AttemptOutcome.CompiledNoProgress,
+        _ => AttemptOutcome.Progressed, // Progressed or Solved
+    };
 
     private async Task<IReadOnlyList<FossilMatch>> TryFossilHitAsync(
         ProofState state, EpisodeContext ctx, HashSet<string> triedFossils, CancellationToken ct)
@@ -641,7 +699,8 @@ public sealed record EpisodeContext(
     string EpisodeId,
     int MaxTurns,
     float FossilMatchThreshold,
-    float FossilDirectSubstituteThreshold);
+    float FossilDirectSubstituteThreshold,
+    ProofGoalGraph GoalGraph);
 
 public sealed record EpisodeResult(
     string FinalSketch,

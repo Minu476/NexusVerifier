@@ -2,6 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+# Topos (external/Topos) is a git submodule — required for NexusAgent.Core's
+# ProofGoalGraph. `docker build` must be run from a checkout with submodules
+# already initialized: `git submodule update --init --recursive` first.
+COPY external/Topos/src/Topos.Hypergraph/Topos.Hypergraph.csproj ./external/Topos/src/Topos.Hypergraph/
+
 # Copy solution + project files first for layer-cached restore
 COPY NexusAgent/NexusAgent.sln ./NexusAgent/
 COPY NexusAgent/NexusAgent.Cli/NexusAgent.Cli.csproj          ./NexusAgent/NexusAgent.Cli/
@@ -9,9 +14,10 @@ COPY NexusAgent/NexusAgent.Core/NexusAgent.Core.csproj         ./NexusAgent/Nexu
 COPY NexusAgent/NexusAgent.Tests/NexusAgent.Tests.csproj       ./NexusAgent/NexusAgent.Tests/
 COPY NexusAgent/NexusAgent.VerifiedParts/NexusAgent.VerifiedParts.csproj ./NexusAgent/NexusAgent.VerifiedParts/
 COPY NexusAgent/NexusAgent.MathlibIngestor/NexusAgent.MathlibIngestor.csproj ./NexusAgent/NexusAgent.MathlibIngestor/
-RUN dotnet restore NexusAgent/NexusAgent.sln
+RUN dotnet restore NexusAgent/NexusAgent.Cli/NexusAgent.Cli.csproj
 
 # Copy remaining source and publish
+COPY external/Topos/src/Topos.Hypergraph/ ./external/Topos/src/Topos.Hypergraph/
 COPY NexusAgent/ ./NexusAgent/
 RUN dotnet publish NexusAgent/NexusAgent.Cli/NexusAgent.Cli.csproj \
       -c Release \

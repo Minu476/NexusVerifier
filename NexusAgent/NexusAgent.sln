@@ -17,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusAgent.ToposExperiment"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RichLearning.V2", "..\..\rich-learning-base\src\RichLearning.V2\RichLearning.V2.csproj", "{E69C71D7-6834-48AE-AC2E-D8631EE732F5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Topos.Hypergraph", "..\..\Topos\src\Topos.Hypergraph\Topos.Hypergraph.csproj", "{51D0C97C-DC23-409C-B85E-C343ED805960}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Topos.Hypergraph", "..\external\Topos\src\Topos.Hypergraph\Topos.Hypergraph.csproj", "{51D0C97C-DC23-409C-B85E-C343ED805960}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusAgent.ToposExperiment.Tests", "NexusAgent.ToposExperiment.Tests\NexusAgent.ToposExperiment.Tests.csproj", "{0B3254E3-7EA1-4CD5-8CEE-C48C2C5719A2}"
 EndProject

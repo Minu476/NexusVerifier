@@ -815,6 +815,7 @@ static void PrintResult(ProofResult r)
         : 0d;
     Console.WriteLine($"  Fossil conv:     {conversion:P1} ({r.FossilHits}/{r.FossilRetrievalSamples})");
     Console.WriteLine($"  Struct rejects:  {r.StructuralGateRejections}");
+    Console.WriteLine($"  Goal dedup hits: {r.GoalGraphDedupHits}");
     if (r.GraphPlannerUsed)
     {
         Console.WriteLine($"  Planner exp:     {r.GraphPlannerExpansions}");
@@ -844,6 +845,7 @@ static void PrintBenchmarkSummary(List<ProofResult> results, decimal totalSpent)
         : 0d;
     Console.WriteLine($"Fossil conv rate:   {totalConversion:P1} ({results.Sum(r => r.FossilHits)}/{totalRetrievalSamples})");
     Console.WriteLine($"Struct rejects:     {results.Sum(r => r.StructuralGateRejections)}");
+    Console.WriteLine($"Goal dedup hits:    {results.Sum(r => r.GoalGraphDedupHits)}");
     var plannerRuns = results.Count(r => r.GraphPlannerUsed);
     Console.WriteLine($"Planner runs:       {plannerRuns}");
     Console.WriteLine($"Planner expansions: {results.Sum(r => r.GraphPlannerExpansions)}");
