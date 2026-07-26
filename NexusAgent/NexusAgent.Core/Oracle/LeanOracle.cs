@@ -102,10 +102,17 @@ public sealed partial class LeanOracle : ILeanOracle
     /// Confirmed live 2026-07-25: a candidate citing `Green14.W_3_15` (itself
     /// `:= by sorry` in its source file) compiled with SorryCount=0 and no
     /// warning, but `#print axioms` showed `sorryAx` in its dependency list.
+    ///
+    /// Names are namespace-qualified (<see cref="Agent.SketchValidator.QualifiedTheoremNamesIn"/>),
+    /// not bare — the probe is appended *after* the full sketch, so a bare name
+    /// declared inside `namespace Foo ... end Foo` no longer resolves at that
+    /// point (Lean reports "unknown constant", not `sorryAx`), silently
+    /// bypassing this whole check. Confirmed live 2026-07-26 for exactly the
+    /// `Green14.W_3_15` scenario above, wrapped in a namespace.
     /// </summary>
     private async Task<bool> HasSorryAxiomAsync(string sketch, CancellationToken ct)
     {
-        var names = NexusAgent.Core.Agent.SketchValidator.TheoremNamesIn(sketch);
+        var names = NexusAgent.Core.Agent.SketchValidator.QualifiedTheoremNamesIn(sketch);
         if (names.Count == 0) return false;
 
         var probe = sketch + "\n\n" + string.Join("\n", names.Select(n => $"#print axioms {n}"));
