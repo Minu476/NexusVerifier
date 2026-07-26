@@ -37,14 +37,31 @@ public sealed partial class LeanOracle : ILeanOracle
         var hash = ComputeSha256(leanSketch);
 
         var cached = await _neo4j.GetCompileCacheAsync(hash, ct);
+        LeanResult result;
         if (cached is not null)
         {
             _log.LogDebug("LeanOracle cache hit: {Hash}", hash[..12]);
-            return cached;
+            result = cached;
+        }
+        else
+        {
+            result = await CompileFreshAsync(leanSketch, ct);
+            await _neo4j.PutCompileCacheAsync(hash, result, ct);
         }
 
-        var result = await CompileFreshAsync(leanSketch, ct);
-        await _neo4j.PutCompileCacheAsync(hash, result, ct);
+        // The compile cache doesn't store HasSorryAxiom, and a cached "false" isn't
+        // trustworthy either way — always re-verify when the sketch otherwise looks
+        // fully proved. Cheap in aggregate: this only fires on apparent successes,
+        // a small fraction of all compiles.
+        if (result.Compiled && result.SorryCount == 0 && result.RemainingGoals == 0
+            && await HasSorryAxiomAsync(leanSketch, ct))
+        {
+            _log.LogWarning(
+                "LeanOracle: sketch looked fully proved but #print axioms found sorryAx " +
+                "(likely a tactic citing an already-sorry-backed declaration) — rejecting");
+            result = result with { HasSorryAxiom = true };
+        }
+
         return result;
     }
 
@@ -66,6 +83,39 @@ public sealed partial class LeanOracle : ILeanOracle
     }
 
     private async Task<LeanResult> CompileFreshAsync(string sketch, CancellationToken ct)
+    {
+        var (stdout, stderr, exitCode, elapsed, timedOut) = await RunLeanAsync(sketch, ct);
+        if (timedOut)
+            return LeanResult.Failure("Lean compile timed out", elapsed);
+        return ParseLeanOutput(stdout, stderr, exitCode, elapsed);
+    }
+
+    /// <summary>
+    /// Runs a sketch with `#print axioms &lt;name&gt;` appended for every theorem/lemma
+    /// it declares, and reports whether any of them transitively depend on
+    /// <c>sorryAx</c>. This catches a class of false "solved" verdict that
+    /// <see cref="ParseLeanOutput"/>'s sorry-count scan cannot: a tactic that cites
+    /// a different, already-sorry-backed declaration (e.g. `exact SomeOther.thm`)
+    /// compiles clean with no "declaration uses 'sorry'" warning at the citing
+    /// site — Lean only prints that warning where the literal `sorry` occurs, not
+    /// at every downstream use. `#print axioms` is the only reliable check.
+    /// Confirmed live 2026-07-25: a candidate citing `Green14.W_3_15` (itself
+    /// `:= by sorry` in its source file) compiled with SorryCount=0 and no
+    /// warning, but `#print axioms` showed `sorryAx` in its dependency list.
+    /// </summary>
+    private async Task<bool> HasSorryAxiomAsync(string sketch, CancellationToken ct)
+    {
+        var names = NexusAgent.Core.Agent.SketchValidator.TheoremNamesIn(sketch);
+        if (names.Count == 0) return false;
+
+        var probe = sketch + "\n\n" + string.Join("\n", names.Select(n => $"#print axioms {n}"));
+        var (stdout, stderr, _, _, timedOut) = await RunLeanAsync(probe, ct);
+        if (timedOut) return false; // can't confirm either way; don't block on a timeout here
+        return (stdout + "\n" + stderr).Contains("sorryAx");
+    }
+
+    private async Task<(string Stdout, string Stderr, int ExitCode, TimeSpan Elapsed, bool TimedOut)>
+        RunLeanAsync(string sketch, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
 
@@ -117,14 +167,14 @@ public sealed partial class LeanOracle : ILeanOracle
             {
                 try { proc.Kill(entireProcessTree: true); } catch { /* race */ }
                 sw.Stop();
-                return LeanResult.Failure("Lean compile timed out", sw.Elapsed);
+                return ("", "", -1, sw.Elapsed, true);
             }
 
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
             sw.Stop();
 
-            return ParseLeanOutput(stdout, stderr, proc.ExitCode, sw.Elapsed);
+            return (stdout, stderr, proc.ExitCode, sw.Elapsed, false);
         }
         finally
         {
