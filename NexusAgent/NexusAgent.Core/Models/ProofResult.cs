@@ -38,6 +38,11 @@ public sealed record ProofResult
     /// <summary>True when legacy LLM subagent was invoked after planner search.</summary>
     public bool LegacyLlmFallbackUsed { get; init; }
     public GraphProposalTelemetry Tier075Telemetry { get; init; } = new();
+    /// <summary>How many times this problem's ProofGoalGraph resolved a goal it had
+    /// already seen (same normalized text, different tactic path) rather than
+    /// creating a new one — a proxy for how often the search revisits the same
+    /// open goal. Telemetry only; see NexusAgent.Core.Planning.ProofGoalGraph.</summary>
+    public int GoalGraphDedupHits { get; init; }
 }
 
 public enum ProofOutcome

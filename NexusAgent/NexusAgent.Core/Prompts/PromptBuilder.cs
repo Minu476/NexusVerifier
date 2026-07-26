@@ -2,6 +2,7 @@ using System.Text;
 using NexusAgent.Core.Llm;
 using NexusAgent.Core.Memory;
 using NexusAgent.Core.Models;
+using NexusAgent.Core.Planning;
 using NexusAgent.Core.Safety;
 
 namespace NexusAgent.Core.Prompts;
@@ -21,7 +22,8 @@ public sealed class PromptBuilder
         IReadOnlyList<FossilMatch> fossilHints,
         IReadOnlyList<HallucinationWarning> hallucinationWarnings,
         int maxOutputTokens = 2048,
-        string? structuralViolationWarning = null)
+        string? structuralViolationWarning = null,
+        ProofGoalGraph? goalGraph = null)
     {
         // STABLE PREFIX — same across all turns of an episode (cache-friendly)
         var stablePrefix = new StringBuilder();
@@ -57,6 +59,43 @@ public sealed class PromptBuilder
             for (int i = 0; i < state.PendingGoals.Length && i < 5; i++)
                 mutableSuffix.AppendLine($"{i + 1}. {state.PendingGoals[i]}");
             mutableSuffix.AppendLine();
+
+            // Capped to top 3 goals × top 3 failed tactics each, to protect the
+            // prefix-cache-friendly stable/mutable split this file is built around —
+            // don't let this grow unbounded across a long episode.
+            if (goalGraph is not null)
+            {
+                var historyLines = new List<string>();
+                for (int i = 0; i < state.PendingGoals.Length && i < 3; i++)
+                {
+                    var goalId = goalGraph.GetOrAddGoal(state.PendingGoals[i]);
+                    var failed = goalGraph.FailedAttemptsFor(goalId);
+                    var siblings = goalGraph.SiblingsOf(goalId);
+                    if (failed.Count == 0 && siblings.Count == 0) continue;
+
+                    var line = new StringBuilder($"- goal {i + 1}: ");
+                    if (failed.Count > 0)
+                    {
+                        var tried = failed.Take(3)
+                            .Select(f => $"`{Truncate(f.TacticText, 80)}` ({f.Outcome})");
+                        line.Append("already tried and did not work: ").Append(string.Join(", ", tried));
+                    }
+                    if (siblings.Count > 0)
+                    {
+                        if (failed.Count > 0) line.Append("; ");
+                        line.Append($"{siblings.Count} sibling goal(s) from the same tactic application " +
+                                    "are also still open");
+                    }
+                    historyLines.Add(line.ToString());
+                }
+
+                if (historyLines.Count > 0)
+                {
+                    mutableSuffix.AppendLine("# Goal history (this run)");
+                    foreach (var l in historyLines) mutableSuffix.AppendLine(l);
+                    mutableSuffix.AppendLine();
+                }
+            }
         }
 
         if (cartographerHint is not null)
@@ -108,6 +147,9 @@ public sealed class PromptBuilder
             "sketch MUST be preserved exactly. Modify only the proof terms — what comes after " +
             "`:= by` or `:=`. Renaming, removing, or substituting any declaration is detected " +
             "automatically and will cause the response to be rejected.");
+        mutableSuffix.AppendLine(
+            "Even when a goal above is discussed individually (e.g. \"goal 2\"), always return the " +
+            "COMPLETE sketch file — never just the tactic for one subgoal in isolation.");
 
         return new LlmRequest
         {

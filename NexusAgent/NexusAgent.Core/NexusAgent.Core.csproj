@@ -17,6 +17,16 @@
   </ItemGroup>
 
   <!--
+    Topos lives in a real git submodule at external/Topos (pinned commit, see
+    .gitmodules), unlike Rich-Learning-Base below — the Dockerfile copies
+    external/ into the build context, so this reference is Docker-buildable.
+    Used by NexusAgent.Core/Planning/ProofGoalGraph.cs.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\Topos\src\Topos.Hypergraph\Topos.Hypergraph.csproj" />
+  </ItemGroup>
+
+  <!--
     FUTURE: Uncomment this reference once you have the Rich-Learning-Base V2 csproj
     available at the relative path. The local interfaces in this project (e.g.
     INexusGraphMemory, INexusStateEncoder, INexusConsonanceChecker) intentionally

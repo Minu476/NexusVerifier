@@ -73,6 +73,14 @@ public sealed class NexusOrchestrator
 
         await _neo4j.UpsertProblemAsync(problem.Id, problem.Source, problem.LeanFilePath, ct);
 
+        // One goal-graph per SolveAsync call, alive across all its episodes, dies
+        // with the call — no persistence across separate CLI invocations (deferred,
+        // see docs/plan). Local variable, not a field: this class and
+        // NexusProverSubagent are DI singletons that `nexus bench` calls
+        // concurrently across different problems, so any per-problem state must
+        // live on the call stack, never as instance/static state.
+        var goalGraph = new ProofGoalGraph();
+
         var plannerUsed = false;
         var plannerExpansions = 0;
         var plannerAcceptedTransitions = 0;
@@ -187,7 +195,8 @@ public sealed class NexusOrchestrator
                 return BuildResult(problem.Id, ProofOutcome.TimedOut, null, ep, totalTurns,
                     totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier, totalCost, sw.Elapsed,
                     simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
-                    plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed);
+                    plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
+                    goalGraphDedupHits: goalGraph.DedupHits);
             }
 
             var ctx = new EpisodeContext(
@@ -199,7 +208,8 @@ public sealed class NexusOrchestrator
                 EpisodeId: Guid.NewGuid().ToString("N")[..8],
                 MaxTurns: config.MaxTurnsPerEpisode,
                 FossilMatchThreshold: config.FossilMatchThreshold,
-                FossilDirectSubstituteThreshold: config.FossilDirectSubstituteThreshold);
+                FossilDirectSubstituteThreshold: config.FossilDirectSubstituteThreshold,
+                GoalGraph: goalGraph);
 
             using var episodeCts = new CancellationTokenSource(config.EpisodeTimeout);
             using var combined = CancellationTokenSource.CreateLinkedTokenSource(ct, episodeCts.Token);
@@ -239,7 +249,7 @@ public sealed class NexusOrchestrator
                     totalCost, sw.Elapsed,
                     simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
                     plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-                    totalTier075Telemetry);
+                    totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
             }
 
             // Carry the best sketch (fewest sorries) forward, not just the last one.
@@ -285,7 +295,7 @@ public sealed class NexusOrchestrator
                         totalCost, sw.Elapsed,
                         simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
                         plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-                        totalTier075Telemetry);
+                        totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
                 }
             }
             currentSketch = bestSketch;
@@ -308,7 +318,7 @@ public sealed class NexusOrchestrator
                         totalCost, sw.Elapsed,
                         simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
                         plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-                        totalTier075Telemetry);
+                        totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
                 }
             }
         }
@@ -328,7 +338,7 @@ public sealed class NexusOrchestrator
             totalCost, sw.Elapsed,
             simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
             plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-            totalTier075Telemetry);
+            totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
     }
 
     private static ProofResult BuildResult(
@@ -340,7 +350,8 @@ public sealed class NexusOrchestrator
         int graphPlannerExpansions,
         int graphPlannerAcceptedTransitions,
         bool legacyLlmFallbackUsed,
-        GraphProposalTelemetry? tier075Telemetry = null) => new()
+        GraphProposalTelemetry? tier075Telemetry = null,
+        int goalGraphDedupHits = 0) => new()
     {
         ProblemId = id,
         Outcome = outcome,
@@ -364,6 +375,7 @@ public sealed class NexusOrchestrator
         GraphPlannerAcceptedTransitions = graphPlannerAcceptedTransitions,
         LegacyLlmFallbackUsed = legacyLlmFallbackUsed,
         Tier075Telemetry = tier075Telemetry ?? new GraphProposalTelemetry(),
+        GoalGraphDedupHits = goalGraphDedupHits,
     };
 }
 
