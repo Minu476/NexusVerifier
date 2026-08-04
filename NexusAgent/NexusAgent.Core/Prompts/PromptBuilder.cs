@@ -275,7 +275,9 @@ public sealed class PromptBuilder
         string bestSketch,
         int bestSorryCount,
         int episodesAttempted,
-        int maxOutputTokens = 4096)
+        int maxOutputTokens = 4096,
+        string? priorAttemptSketch = null,
+        IReadOnlyList<string>? priorAttemptErrors = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("# Problem");
@@ -286,6 +288,28 @@ public sealed class PromptBuilder
         sb.AppendLine(bestSketch.Trim());
         sb.AppendLine("```");
         sb.AppendLine();
+
+        // Retry with error feedback: the model already produced a different strategy once, but
+        // it didn't compile. Show it the exact error rather than asking for a fresh guess blind —
+        // this is what the log line at the call site claims happens, and until this parameter was
+        // threaded through, that claim was false (both attempts sent an identical prompt).
+        if (priorAttemptSketch is not null && priorAttemptErrors is { Count: > 0 })
+        {
+            sb.AppendLine("# Your previous reformulation attempt did not compile");
+            sb.AppendLine("```lean");
+            sb.AppendLine(priorAttemptSketch.Trim());
+            sb.AppendLine("```");
+            sb.AppendLine("Compiler errors:");
+            sb.AppendLine("```");
+            foreach (var err in priorAttemptErrors) sb.AppendLine(err);
+            sb.AppendLine("```");
+            sb.AppendLine(
+                "Fix these errors while keeping this a genuinely different strategy from the " +
+                "originally-failed approach above — do not revert to it. A syntax or type error " +
+                "does not mean the underlying strategy was wrong.");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("# Your task — pivot to a DIFFERENT proof strategy");
         sb.AppendLine(
             "The proof approach above has been tried with multiple tactic variations and " +
@@ -330,7 +354,9 @@ public sealed class PromptBuilder
             ],
             MaxOutputTokens = maxOutputTokens,
             Temperature = 0.7,  // high — we want a genuinely different idea
-            CacheKey = $"reformulate|ep{episodesAttempted}",
+            CacheKey = priorAttemptErrors is { Count: > 0 }
+                ? $"reformulate|ep{episodesAttempted}|retry"
+                : $"reformulate|ep{episodesAttempted}",
         };
     }
 

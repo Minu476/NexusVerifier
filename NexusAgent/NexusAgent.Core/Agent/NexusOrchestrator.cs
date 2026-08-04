@@ -324,14 +324,15 @@ public sealed class NexusOrchestrator
                         string? acceptedSketch = null;
                         int acceptedSorry = -1;
                         const int maxReformRetries = 2;  // 1 initial + 1 retry with error feedback
+                        string? priorAttemptSketch = null;
+                        string[]? priorAttemptErrors = null;
 
                         for (int reformAttempt = 0; reformAttempt < maxReformRetries; reformAttempt++)
                         {
-                            var reformRequest = reformAttempt == 0
-                                ? _promptBuilder.BuildReformulationRequest(
-                                    problem.Statement, bestSketch, bestSorryCount, ep + 1)
-                                : _promptBuilder.BuildReformulationRequest(
-                                    problem.Statement, bestSketch, bestSorryCount, ep + 1);
+                            var reformRequest = _promptBuilder.BuildReformulationRequest(
+                                problem.Statement, bestSketch, bestSorryCount, ep + 1,
+                                priorAttemptSketch: priorAttemptSketch,
+                                priorAttemptErrors: priorAttemptErrors);
 
                             try
                             {
@@ -368,12 +369,10 @@ public sealed class NexusOrchestrator
                                 else if (reformAttempt < maxReformRetries - 1)
                                 {
                                     _log.LogInformation(
-                                        "Problem {Id}: reformulation attempt {A} did not compile — retrying with error feedback",
-                                        problem.Id, reformAttempt + 1);
-                                    // TODO: feed reformCompile.Errors back into the next attempt.
-                                    // For now, retry with the same prompt (the model may produce
-                                    // different output at temp 0.7); a proper error-feedback loop
-                                    // requires extending BuildReformulationRequest's signature.
+                                        "Problem {Id}: reformulation attempt {A} did not compile ({E} error(s)) — retrying with error feedback",
+                                        problem.Id, reformAttempt + 1, reformCompile.Errors.Length);
+                                    priorAttemptSketch = newSketch;
+                                    priorAttemptErrors = reformCompile.Errors;
                                 }
                                 else
                                 {
