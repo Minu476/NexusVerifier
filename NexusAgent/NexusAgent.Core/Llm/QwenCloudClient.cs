@@ -121,6 +121,7 @@ public sealed class QwenCloudClient : ILlmClient
         {
             Content           = content,
             Tier              = Tier,
+            ModelId           = _config.QwenCloudModelTag,
             InputTokens       = newInput,
             OutputTokens      = outputTokens,
             CachedInputTokens = cachedTokens,

@@ -75,6 +75,7 @@ public sealed class QwenLocalClient : ILlmClient
         {
             Content = payload.Message.Content,
             Tier = Tier,
+            ModelId = _config.QwenModelTag,
             InputTokens = payload.PromptEvalCount,
             OutputTokens = payload.EvalCount,
             CachedInputTokens = 0,                 // Ollama doesn't cache across requests

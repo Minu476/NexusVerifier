@@ -26,6 +26,7 @@ public sealed class NexusProverSubagent
     private readonly HallucinationGate _hallucinationGate;
     private readonly ProofCartographer _cartographer;
     private readonly INeo4jClient _neo4j;
+    private readonly IToposTacticStore _toposStore;
     private readonly ProofStateEncoder _encoder;
     private readonly PromptBuilder _promptBuilder;
     private readonly ILogger<NexusProverSubagent> _log;
@@ -37,6 +38,7 @@ public sealed class NexusProverSubagent
         HallucinationGate hallucinationGate,
         ProofCartographer cartographer,
         INeo4jClient neo4j,
+        IToposTacticStore toposStore,
         ProofStateEncoder encoder,
         PromptBuilder promptBuilder,
         ILogger<NexusProverSubagent> log)
@@ -47,6 +49,7 @@ public sealed class NexusProverSubagent
         _hallucinationGate = hallucinationGate;
         _cartographer = cartographer;
         _neo4j = neo4j;
+        _toposStore = toposStore;
         _encoder = encoder;
         _promptBuilder = promptBuilder;
         _log = log;
@@ -73,6 +76,22 @@ public sealed class NexusProverSubagent
         string? structuralViolationWarning = null; // set when rename-hacking is detected; fed into next turn
         var consecutiveViolations = 0;             // consecutive structural gate rejections this episode
         LlmTier? tierCeiling = null;               // locked after first violation to demote away from Tier 3
+        // ── Obstruction-diagnosis gate (2026-08-03, per OAI walkthroughs) ──────────
+        // When the prover hits a structural violation or sustained stall, force a natural-language
+        // diagnosis call before the next Lean-producing turn. The diagnosis asks the model to name
+        // the obstruction precisely and propose a substantively different approach — the
+        // diagnose-then-pivot discipline every frontier proof in the walkthroughs used. The
+        // diagnosis text replaces the bare "don't rename" warning with actual pivoting guidance.
+        string? obstructionDiagnosis = null;       // diagnosis prose, fed into next prover prompt
+        var diagnosisUsed = false;                 // true after a diagnosis was injected (consume once)
+        // Safety cap: prevent an unbounded cheat→diagnose→cheat→diagnose loop. Each diagnosis
+        // resets the consecutive-violation counter, so without a cap the model could alternate
+        // reward-hacking and diagnosis indefinitely. Hard-limit to ctx.MaxDiagnosesPerEpisode
+        // (default 1) diagnoses per episode — once exhausted, the next time it gets stuck after
+        // a diagnosis, it should abort, not diagnose again. Sourced from OrchestratorConfig so
+        // it can be tuned like the other episode-shaping knobs (MaxTurns, fossil thresholds, ...).
+        var maxDiagnosesPerEpisode = ctx.MaxDiagnosesPerEpisode;
+        var diagnosesThisEpisode = 0;
 
         for (int turn = 0; turn < ctx.MaxTurns; turn++)
         {
@@ -160,6 +179,11 @@ public sealed class NexusProverSubagent
                                     sourceProblem: ctx.ProblemId, ct);
                                 bestSorryCount = replayResult.SorryCount;
                                 turnsSinceProgress = 0;
+                                // Enrich the Topos store so later problems can retrieve this tactic.
+                                await _toposStore.RecordSuccessAsync(
+                                    string.Join(" ; ", prevState.PendingGoals.Take(2)),
+                                    _encoder.Encode(prevState),
+                                    ExtractTacticDiff(sketch, replaySketch), ct);
                             }
                             sketch = replaySketch;
                             lastResult = replayResult;
@@ -176,14 +200,17 @@ public sealed class NexusProverSubagent
             if (graphReplaySucceeded) continue;
 
             // ---- 0.75) Logic-first graph-native tactic proposal ----
-            // Before fossils and before any model call, query the offline GoalShape/APPLIES
-            // graph and deterministically test top candidate tactics on the current sorry.
+            // Before fossils and before any model call, query the Topos tactic store
+            // (cross-run, Topos-native HypergraphKernel + VectorIndex + EdgeStatistics) for
+            // candidate tactics and deterministically test them on the current sorry.
+            // Replaces the Neo4j goal-shape path, which was inert (missing vector index).
+            // The Topos store is seeded at startup from the fossil vault and reinforced
+            // via RecordOutcomeAsync below — so each problem benefits from earlier ones.
             if (lastResult.SorryCount > 0)
             {
                 var proposalVec = _encoder.Encode(prevState);
-                var proposals = await _neo4j.ProposeTacticsFromGoalVectorAsync(
-                    proposalVec, neighborK: 12, topK: 8, ct)
-                    ?? Array.Empty<GraphTacticProposal>();
+                var proposals = await _toposStore.ProposeAsync(
+                    proposalVec, neighborK: 12, topK: 8, ct);
 
                 var deterministicTried = 0;
                 foreach (var proposal in proposals)
@@ -239,6 +266,12 @@ public sealed class NexusProverSubagent
                                 sourceProblem: ctx.ProblemId,
                                 ct);
                             bestSorryCount = candidateResult.SorryCount;
+                            // Enrich the Topos store: this Topos-proposed tactic won, so it
+                            // ranks higher for similar goals on later problems.
+                            await _toposStore.RecordSuccessAsync(
+                                string.Join(" ; ", prevState.PendingGoals.Take(2)),
+                                _encoder.Encode(prevState),
+                                proposal.TacticText, ct);
                         }
 
                         sketch = candidateSketch;
@@ -247,6 +280,14 @@ public sealed class NexusProverSubagent
                         turnsSinceProgress = 0;
                         graphReplayHits++;
                         graphTelemetry.Tier075AttributedWins++;
+
+                        // Feedback loop: reinforce this edge so it ranks higher next time.
+                        // The goal hash is the SHA-256 of the (whitespace-normalized) first
+                        // pending goal — the same key the Topos store dedups goal vertices by.
+                        var feedbackGoalHash = prevState.PendingGoals.Length > 0
+                            ? SketchValidator.NormalizeWhitespace(prevState.PendingGoals[0]) : "";
+                        await _toposStore.RecordOutcomeAsync(
+                            proposal.TacticId, feedbackGoalHash, succeeded: true, ct);
 
                         _log.LogInformation(
                             "Turn {T}: Tier 0.75 graph tactic `{Tac}` (rank={Rank:F3}, sim={Sim:F3}, succ={Succ:F2}) -> sorries {N}",
@@ -352,8 +393,10 @@ public sealed class NexusProverSubagent
                         ctx.ProblemStatement, sketch, prevState,
                         cartoHint, fossilCandidates, warnings,
                         structuralViolationWarning: structuralViolationWarning,
-                        goalGraph: ctx.GoalGraph);
+                        goalGraph: ctx.GoalGraph,
+                        obstructionDiagnosis: obstructionDiagnosis);
                     structuralViolationWarning = null; // consumed
+                    obstructionDiagnosis = null;       // consumed
 
                     var routerCtx = new RouterContext
                     {
@@ -399,8 +442,10 @@ public sealed class NexusProverSubagent
                     ctx.ProblemStatement, sketch, prevState,
                     cartoHint, fossilCandidates, warnings,
                     structuralViolationWarning: structuralViolationWarning,
-                    goalGraph: ctx.GoalGraph);
+                    goalGraph: ctx.GoalGraph,
+                    obstructionDiagnosis: obstructionDiagnosis);
                 structuralViolationWarning = null; // consumed
+                obstructionDiagnosis = null;       // consumed
 
                 var routerCtx = new RouterContext
                 {
@@ -462,17 +507,83 @@ public sealed class NexusProverSubagent
                 if (consecutiveViolations == 1)
                 {
                     // First violation: demote to Tier 2 for the rest of this episode.
-                    // deepseek-reasoner is the only model that renames; deepseek-chat does not.
                     tierCeiling = LlmTier.Tier2_DeepSeekFlash;
                     _log.LogWarning(
                         "Turn {T}: tier ceiling locked to Tier2 after first structural violation", turn);
                 }
+                else if (consecutiveViolations == 2 && diagnosesThisEpisode < maxDiagnosesPerEpisode
+                         && ctx.PivotGatesEnabled)
+                {
+                    // ── Obstruction-diagnosis gate ──────────────────────────────────
+                    // Second violation: instead of aborting, force a diagnosis call. The model is
+                    // stuck and defaulting to reward-hacking — redirect that into diagnosing *why*
+                    // it's stuck and proposing a different approach (the walkthroughs discipline).
+                    // Reset the consecutive counter so it gets a fresh start with the diagnosis.
+                    _log.LogInformation(
+                        "Turn {T}: 2 consecutive structural violations — invoking obstruction-diagnosis gate",
+                        turn);
+
+                    var diagnosisRequest = _promptBuilder.BuildDiagnosisRequest(
+                        ctx.ProblemStatement, sketch, prevState,
+                        rejectionReason: "structural validity gate rejected the attempt (theorem declaration was modified)",
+                        failedAttemptCount: turn + 1);
+
+                    var diagnosisCtx = new RouterContext
+                    {
+                        EpisodeIndex = ctx.EpisodeIndex,
+                        TurnIndex = turn,
+                        TurnsSinceLastProgress = turnsSinceProgress,
+                        CurrentSorryCount = prevState.SorryCount,
+                        TierCeiling = tierCeiling,
+                    };
+
+                    try
+                    {
+                        var diagnosisResponse = await _router.SendAsync(diagnosisCtx, diagnosisRequest, ct);
+                        obstructionDiagnosis = diagnosisResponse.Content;
+                        diagnosisUsed = true;
+                        diagnosesThisEpisode++;
+                        llmCallsByTier[(int)diagnosisResponse.Tier]++;
+                        costAccum += diagnosisResponse.EstimatedCostUsd;
+
+                        _log.LogInformation(
+                            "Turn {T}: obstruction diagnosis received ({Len} chars) — injecting into next turn",
+                            turn, obstructionDiagnosis.Length);
+
+                        // Reset consecutive violations — the diagnosis is a fresh start.
+                        consecutiveViolations = 0;
+                        // Clear the bare warning — the diagnosis replaces it.
+                        structuralViolationWarning = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.LogWarning(ex,
+                            "Turn {T}: obstruction-diagnosis call failed — falling back to abort", turn);
+                        // Diagnosis failed (e.g. circuit breaker) — abort as before.
+                        return new EpisodeResult(
+                            sketch,
+                            EpisodeOutcome.StructuralGateRejection,
+                            turn + 1,
+                            fossilHits,
+                            fossilRetrievalSamples,
+                            llmCallsByTier,
+                            AvgSim(fossilSimilarities),
+                            bestMissedSim,
+                            FinalSorryCount: lastResult.SorryCount,
+                            GraphReplayHits: graphReplayHits,
+                            CostUsd: costAccum)
+                        {
+                            Tier075Telemetry = graphTelemetry,
+                        };
+                    }
+                }
                 else
                 {
-                    // Second+ consecutive violation: demotion didn't help — abort early.
+                    // Third+ violation (or second after a diagnosis already used): demotion and
+                    // diagnosis didn't help — abort early.
                     _log.LogWarning(
-                        "Turn {T}: {N} consecutive structural violations — aborting episode early to stop budget bleed",
-                        turn, consecutiveViolations);
+                        "Turn {T}: {N} consecutive structural violations (diagnosis already used: {Diag}) — aborting episode early",
+                        turn, consecutiveViolations, diagnosisUsed);
                     return new EpisodeResult(
                         sketch,
                         EpisodeOutcome.StructuralGateRejection,
@@ -538,6 +649,13 @@ public sealed class NexusProverSubagent
                     ct);
                 bestSorryCount = compileResult.SorryCount;
                 turnsSinceProgress = 0;
+                // Enrich the Topos store: an LLM-discovered tactic reduced sorry, so record it
+                // for future problems with similar goals. This is the primary growth path —
+                // every LLM success becomes deterministic-retrieval knowledge for later problems.
+                await _toposStore.RecordSuccessAsync(
+                    string.Join(" ; ", prevState.PendingGoals.Take(2)),
+                    _encoder.Encode(prevState),
+                    ExtractTacticDiff(sketch, updatedSketch), ct);
                 consecutiveViolations = 0; // genuine progress — reset demotion state
                 tierCeiling = null;        // allow Tier 3 again if it earned it
             }
@@ -700,7 +818,9 @@ public sealed record EpisodeContext(
     int MaxTurns,
     float FossilMatchThreshold,
     float FossilDirectSubstituteThreshold,
-    ProofGoalGraph GoalGraph);
+    ProofGoalGraph GoalGraph,
+    bool PivotGatesEnabled = true,
+    int MaxDiagnosesPerEpisode = 1);
 
 public sealed record EpisodeResult(
     string FinalSketch,

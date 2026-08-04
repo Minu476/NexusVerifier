@@ -25,6 +25,10 @@ public interface INeo4jClient
     Task<int> CountFossilsAsync(CancellationToken ct);
     /// <summary>Phase 8: full fossil vault analysis for reporting.</summary>
     Task<FossilAnalysis> FossilAnalysisAsync(CancellationToken ct);
+    /// <summary>Loads every ProofFossil (with its stateVector) for seeding the Topos tactic
+    /// store at startup. Used by the cross-run tactic memory so the first problem in a run
+    /// benefits from prior runs' proven tactic applications.</summary>
+    Task<IReadOnlyList<ProofFossil>> GetAllFossilsAsync(CancellationToken ct);
 
     // ---- Landmark graph ----
     Task<ProofLandmark> UpsertLandmarkAsync(ProofLandmark landmark, CancellationToken ct);

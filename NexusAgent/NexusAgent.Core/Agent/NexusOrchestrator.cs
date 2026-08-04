@@ -5,6 +5,7 @@ using NexusAgent.Core.Memory;
 using NexusAgent.Core.Models;
 using NexusAgent.Core.Oracle;
 using NexusAgent.Core.Planning;
+using NexusAgent.Core.Prompts;
 
 namespace NexusAgent.Core.Agent;
 
@@ -20,6 +21,7 @@ public sealed class NexusOrchestrator
     private readonly ILeanOracle _lean;
     private readonly INeo4jClient _neo4j;
     private readonly TieredLlmRouter _router;
+    private readonly PromptBuilder _promptBuilder;
     private readonly ILogger<NexusOrchestrator> _log;
 
     public NexusOrchestrator(
@@ -28,6 +30,7 @@ public sealed class NexusOrchestrator
         ILeanOracle lean,
         INeo4jClient neo4j,
         TieredLlmRouter router,
+        PromptBuilder promptBuilder,
         ILogger<NexusOrchestrator> log)
     {
         _subagent = subagent;
@@ -35,6 +38,7 @@ public sealed class NexusOrchestrator
         _lean = lean;
         _neo4j = neo4j;
         _router = router;
+        _promptBuilder = promptBuilder;
         _log = log;
     }
 
@@ -95,11 +99,13 @@ public sealed class NexusOrchestrator
 
             if (plannerRun.Solved)
             {
-                await _neo4j.MarkProblemSolvedAsync(problem.Id, 1, ct);
+                var plannerOutcome = ClassifyFinalOutcome(problem, ProofOutcome.Solved, plannerRun.FinalSketch);
+                if (plannerOutcome == ProofOutcome.Solved)
+                    await _neo4j.MarkProblemSolvedAsync(problem.Id, 1, ct);
                 return new ProofResult
                 {
                     ProblemId = problem.Id,
-                    Outcome = ProofOutcome.Solved,
+                    Outcome = plannerOutcome,
                     FinalSketch = plannerRun.FinalSketch,
                     EpisodesUsed = 1,
                     TurnsUsed = plannerRun.Expansions,
@@ -209,7 +215,9 @@ public sealed class NexusOrchestrator
                 MaxTurns: config.MaxTurnsPerEpisode,
                 FossilMatchThreshold: config.FossilMatchThreshold,
                 FossilDirectSubstituteThreshold: config.FossilDirectSubstituteThreshold,
-                GoalGraph: goalGraph);
+                GoalGraph: goalGraph,
+                PivotGatesEnabled: config.PivotGatesEnabled,
+                MaxDiagnosesPerEpisode: config.MaxDiagnosesPerEpisode);
 
             using var episodeCts = new CancellationTokenSource(config.EpisodeTimeout);
             using var combined = CancellationTokenSource.CreateLinkedTokenSource(ct, episodeCts.Token);
@@ -243,13 +251,43 @@ public sealed class NexusOrchestrator
 
             if (result.Outcome == EpisodeOutcome.Solved)
             {
-                await _neo4j.MarkProblemSolvedAsync(problem.Id, ep + 1, ct);
-                return BuildResult(problem.Id, ProofOutcome.Solved, result.FinalSketch,
-                    ep + 1, totalTurns, totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier,
-                    totalCost, sw.Elapsed,
-                    simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
-                    plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-                    totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
+                var episodeOutcome = ClassifyFinalOutcome(problem, ProofOutcome.Solved, result.FinalSketch);
+                if (episodeOutcome == ProofOutcome.Solved)
+                {
+                    await _neo4j.MarkProblemSolvedAsync(problem.Id, ep + 1, ct);
+                    return BuildResult(problem.Id, ProofOutcome.Solved, result.FinalSketch,
+                        ep + 1, totalTurns, totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier,
+                        totalCost, sw.Elapsed,
+                        simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
+                        plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
+                        totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
+                }
+                else
+                {
+                    // Citation exploit detected — the model cited the original declaration instead
+                    // of doing proof search. Per Opus's review (2026-08-04): DON'T return here.
+                    // Treating the citation as "not solved" and continuing the search forces the
+                    // problem into the stuck-episode path, which triggers the reformulation gate —
+                    // converting citation-prone problems from dead weight into exactly the
+                    // stuck-then-pivot path the experiment exists to test.
+                    //
+                    // The citation is recorded in the final outcome only if no independent solve
+                    // is found in a later episode. Track it as the current "best" outcome.
+                    _log.LogWarning(
+                        "Problem {Id}: episode {Ep} solve rejected as citation exploit (cites original declaration {Orig}) — continuing search",
+                        problem.Id, ep, problem.OriginalDeclarationBareName);
+                    // Record the citation sketch as the best (it did compile to 0 sorry) so the
+                    // next episode doesn't lose it — but DON'T reset stuckEpisodes. A citation
+                    // is not real progress, so consecutive citation-only episodes should trigger
+                    // the reformulation gate, not be treated as improvement.
+                    if (result.FinalSorryCount < bestSorryCount)
+                    {
+                        bestSorryCount = result.FinalSorryCount;
+                        bestSketch = result.FinalSketch;
+                    }
+                    // Fall through to the normal episode-end processing (don't return).
+                    // stuckEpisodes will increment below since citation ≠ improvement.
+                }
             }
 
             // Carry the best sketch (fewest sorries) forward, not just the last one.
@@ -287,6 +325,110 @@ public sealed class NexusOrchestrator
                 stuckEpisodes++;
                 if (stuckEpisodes >= MaxStuckEpisodes)
                 {
+                    // ── Between-episode reformulation (per OAI walkthroughs) ──────────────
+                    // Instead of aborting, force the model to diagnose why this *approach*
+                    // failed and produce a genuinely different proof strategy. The next episode
+                    // starts from the reformulated sketch, not a blind fresh attempt at the same
+                    // style. This is the diagnose-then-pivot discipline every frontier proof in
+                    // the walkthroughs used — the win is in changing the approach, not grinding
+                    // harder on one.
+                    //
+                    // Only attempt if there are remaining episodes AND pivot gates are enabled;
+                    // otherwise abort as before.
+                    if (ep + 1 < config.MaxEpisodes && bestSketch is not null && config.PivotGatesEnabled)
+                    {
+                        _log.LogInformation(
+                            "Problem {Id}: {N} consecutive stuck episodes — invoking between-episode reformulation (approach pivot)",
+                            problem.Id, stuckEpisodes);
+
+                        var reformCtx = new RouterContext
+                        {
+                            EpisodeIndex = ep,
+                            TurnIndex = config.MaxTurnsPerEpisode,  // force Tier 3 for the pivot
+                            TurnsSinceLastProgress = config.MaxTurnsPerEpisode,
+                            CurrentSorryCount = bestSorryCount,
+                        };
+
+                        // Reformulation-retry loop: if the first attempt produces non-compiling
+                        // Lean, feed the compile error back and retry once (same pattern as the
+                        // prover turn loop). This addresses the Grimm case where the model
+                        // produced a genuinely different approach but with a syntax error.
+                        string? acceptedSketch = null;
+                        int acceptedSorry = -1;
+                        const int maxReformRetries = 2;  // 1 initial + 1 retry with error feedback
+                        string? priorAttemptSketch = null;
+                        string[]? priorAttemptErrors = null;
+
+                        for (int reformAttempt = 0; reformAttempt < maxReformRetries; reformAttempt++)
+                        {
+                            var reformRequest = _promptBuilder.BuildReformulationRequest(
+                                problem.Statement, bestSketch, bestSorryCount, ep + 1,
+                                priorAttemptSketch: priorAttemptSketch,
+                                priorAttemptErrors: priorAttemptErrors);
+
+                            try
+                            {
+                                var reformResponse = await _router.SendAsync(reformCtx, reformRequest, ct);
+                                totalCost += reformResponse.EstimatedCostUsd;
+
+                                var newSketch = PromptBuilder.ExtractLeanFromResponse(reformResponse.Content);
+                                if (string.IsNullOrWhiteSpace(newSketch))
+                                {
+                                    _log.LogWarning(
+                                        "Problem {Id}: reformulation attempt {A} produced no Lean code {Note}",
+                                        problem.Id, reformAttempt + 1,
+                                        reformAttempt == 0 ? "— model may have returned natural-language analysis only" : "");
+                                    break;  // no point retrying if the model won't produce code
+                                }
+                                if (!SketchValidator.IsStructurallyValid(problem.InitialSketch, newSketch))
+                                {
+                                    _log.LogWarning(
+                                        "Problem {Id}: reformulation attempt {A} — structural gate rejected (declaration modified)",
+                                        problem.Id, reformAttempt + 1);
+                                    break;
+                                }
+
+                                var reformCompile = await _lean.CompileAsync(newSketch, ct);
+                                if (reformCompile.Compiled)
+                                {
+                                    acceptedSketch = newSketch;
+                                    acceptedSorry = reformCompile.SorryCount;
+                                    _log.LogInformation(
+                                        "Problem {Id}: reformulation accepted (attempt {A}) — new sketch with {S} sorry, starting fresh approach",
+                                        problem.Id, reformAttempt + 1, reformCompile.SorryCount);
+                                    break;
+                                }
+                                else if (reformAttempt < maxReformRetries - 1)
+                                {
+                                    _log.LogInformation(
+                                        "Problem {Id}: reformulation attempt {A} did not compile ({E} error(s)) — retrying with error feedback",
+                                        problem.Id, reformAttempt + 1, reformCompile.Errors.Length);
+                                    priorAttemptSketch = newSketch;
+                                    priorAttemptErrors = reformCompile.Errors;
+                                }
+                                else
+                                {
+                                    _log.LogWarning(
+                                        "Problem {Id}: reformulation did not compile after {A} attempt(s) — aborting",
+                                        problem.Id, reformAttempt + 1);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.LogWarning(ex,
+                                    "Problem {Id}: reformulation attempt {A} failed — aborting", problem.Id, reformAttempt + 1);
+                                break;
+                            }
+                        }
+
+                        if (acceptedSketch is not null)
+                        {
+                            currentSketch = acceptedSketch;
+                            stuckEpisodes = 0;
+                            continue;
+                        }
+                    }
+
                     _log.LogWarning(
                         "Problem {Id}: {N} consecutive episodes with no improvement — aborting remaining episodes",
                         problem.Id, stuckEpisodes);
@@ -341,6 +483,31 @@ public sealed class NexusOrchestrator
             totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
     }
 
+    /// <summary>
+    /// Downgrades <see cref="ProofOutcome.Solved"/> to <see cref="ProofOutcome.CitationExploit"/>
+    /// when the winning proof reduces to citing this problem's own original declaration — see
+    /// <see cref="CitationDetector"/>. No-op for every other outcome, and a no-op when the
+    /// problem carries no <see cref="ProblemInput.OriginalDeclarationBareName"/> (nothing to
+    /// check a citation against — e.g. a hand-authored, non-stub problem).
+    ///
+    /// Known gap, not fixed by this check: <see cref="NexusProverSubagent"/> fossilizes on ANY
+    /// sorry-count decrease, including the citation-exploit turn itself, before this method ever
+    /// runs — so a citation exploit can still contaminate the fossil vault / ToposTacticStore
+    /// even though it is correctly excluded from the reported outcome and from
+    /// <c>MarkProblemSolvedAsync</c> here. Fixing that requires this same check inside the
+    /// subagent's per-turn fossilize path, out of scope for this pass.
+    /// </summary>
+    private static ProofOutcome ClassifyFinalOutcome(ProblemInput problem, ProofOutcome outcome, string? finalSketch)
+    {
+        if (outcome != ProofOutcome.Solved) return outcome;
+        if (problem.OriginalDeclarationBareName is not { } origName) return outcome;
+        if (finalSketch is null) return outcome;
+
+        var proofBody = CitationDetector.ExtractProofBody(finalSketch);
+        var verdict = CitationDetector.Classify(proofBody, origName);
+        return verdict == CitationVerdict.Citation ? ProofOutcome.CitationExploit : outcome;
+    }
+
     private static ProofResult BuildResult(
         string id, ProofOutcome outcome, string? sketch,
         int episodes, int turns, int fossilHits, int fossilRetrievalSamples, int graphReplayHits, int[] byTier,
@@ -385,7 +552,13 @@ public sealed record ProblemInput(
     string DomainTag,
     string LeanFilePath,
     string Statement,
-    string InitialSketch);
+    string InitialSketch,
+    /// <summary>Bare name of this problem's own original (pre-stripping) declaration, parsed
+    /// from the stub's "Stripped stub: X → 'Y'" header comment by
+    /// <see cref="CitationDetector.ExtractOriginalDeclarationName"/> at load time. Null for
+    /// non-stub problems (no such header) — the citation-exploit gate is skipped in that case,
+    /// since there is nothing to check a citation against.</summary>
+    string? OriginalDeclarationBareName = null);
 
 public sealed record OrchestratorConfig
 {
@@ -407,4 +580,12 @@ public sealed record OrchestratorConfig
     public float PlannerBranchingWeight { get; init; } = 0.35f;
     public float PlannerErrorWeight { get; init; } = 0.50f;
     public float PlannerNoveltyBonus { get; init; } = 0.30f;
+    /// <summary>When true, obstruction-diagnosis + between-episode reformulation gates are
+    /// active. When false, both revert to original abort behavior (for A/B testing).</summary>
+    public bool PivotGatesEnabled { get; init; } = true;
+    /// <summary>Safety cap: max obstruction-diagnosis calls per episode. Each diagnosis resets
+    /// the consecutive-structural-violation counter, so without a cap a model could alternate
+    /// reward-hacking and diagnosis indefinitely within an episode. Once exhausted, a further
+    /// consecutive violation aborts the episode instead of diagnosing again.</summary>
+    public int MaxDiagnosesPerEpisode { get; init; } = 1;
 }

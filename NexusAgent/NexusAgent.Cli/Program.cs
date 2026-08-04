@@ -142,7 +142,16 @@ else
 builder.Services.AddSingleton(sp =>
 {
     var cfg = sp.GetRequiredService<IOptions<NexusConfig>>().Value;
-    return new RouterConfig { BudgetCapUsd = cfg.BudgetCapUsd };
+    return new RouterConfig
+    {
+        BudgetCapUsd = cfg.BudgetCapUsd,
+        TurnsBeforeEscalation = cfg.TurnsBeforeEscalation,
+        TurnsBeforeFlashEscalation = cfg.TurnsBeforeFlashEscalation,
+        EpisodesBeforeProEscalation = cfg.EpisodesBeforeProEscalation,
+        TempTier1 = cfg.TempTier1,
+        TempTier2 = cfg.TempTier2,
+        TempTier3 = cfg.TempTier3,
+    };
 });
 builder.Services.AddSingleton<TieredLlmRouter>();
 
@@ -168,6 +177,10 @@ builder.Services.AddSingleton<ProofFossilizer>();
 builder.Services.AddSingleton<HallucinationGate>();
 builder.Services.AddSingleton<ProofCartographer>();
 builder.Services.AddSingleton<BestFirstGraphPlanner>();
+// Topos-native cross-run tactic store — process-lifetime HypergraphKernel shared across all
+// problems in a bench run. Replaces the broken Neo4j goal-shape retrieval for Tier 0.75 and
+// closes the feedback loop (RecordOutcome reinforces edges). Seeded from fossils at startup.
+builder.Services.AddSingleton<IToposTacticStore, ToposTacticStore>();
 builder.Services.AddSingleton<ILeanOracle, LeanOracle>();
 builder.Services.AddSingleton<NexusProverSubagent>();
 builder.Services.AddSingleton<NexusOrchestrator>();
@@ -186,6 +199,23 @@ if (cmd != "probe")
     using var scope = host.Services.CreateScope();
     var neo4j = scope.ServiceProvider.GetRequiredService<INeo4jClient>();
     await neo4j.EnsureSchemaAsync(CancellationToken.None);
+
+    // Seed the Topos cross-run tactic store from the fossil vault so the first problem in a
+    // bench run benefits from prior runs' proven tactic applications. Each fossil (goal + the
+    // tactic that reduced its sorry) becomes a goal vertex + a tactic edge in the Topos kernel.
+    try
+    {
+        var toposStore = scope.ServiceProvider.GetRequiredService<IToposTacticStore>();
+        var fossils = await neo4j.GetAllFossilsAsync(CancellationToken.None);
+        if (fossils.Count > 0)
+        {
+            await toposStore.SeedFromFossilsAsync(fossils, CancellationToken.None);
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Topos tactic store seeding skipped — fossils unavailable");
+    }
 }
 
 int exitCode;
@@ -584,7 +614,8 @@ static async Task<int> RunSolveAsync(IHost host, string[] args)
     var sketch = await File.ReadAllTextAsync(file);
 
     var orchestrator = host.Services.GetRequiredService<NexusOrchestrator>();
-    var input = new ProblemInput(id, "Manual", domain, file, statement, sketch);
+    var input = new ProblemInput(id, "Manual", domain, file, statement, sketch,
+        CitationDetector.ExtractOriginalDeclarationName(sketch));
     var config = new OrchestratorConfig();
 
     var result = await orchestrator.SolveAsync(input, config, CancellationToken.None);
@@ -623,6 +654,7 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
     var router = host.Services.GetRequiredService<TieredLlmRouter>();
     var neo4j = host.Services.GetRequiredService<INeo4jClient>();
     var log = host.Services.GetRequiredService<ILogger<Program>>();
+    var nexusConfig = host.Services.GetRequiredService<IOptions<NexusConfig>>().Value;
 
     var files = Directory.GetFiles(dir, "*.lean", SearchOption.TopDirectoryOnly);
     log.LogInformation("Benchmark run: {N} problems from {Dir} ({Source}), parallelism={P}",
@@ -650,7 +682,8 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
                 return;
             }
 
-            var input = new ProblemInput(id, source, domain, file, statement, sketch);
+            var input = new ProblemInput(id, source, domain, file, statement, sketch,
+                CitationDetector.ExtractOriginalDeclarationName(sketch));
             var config = new OrchestratorConfig
             {
                 MaxEpisodes        = maxEpisodes,
@@ -669,6 +702,7 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
                 PlannerBranchingWeight = plannerBranchingWeight,
                 PlannerErrorWeight = plannerErrorWeight,
                 PlannerNoveltyBonus = plannerNoveltyBonus,
+                PivotGatesEnabled = nexusConfig.PivotGatesEnabled,
             };
 
             log.LogInformation("--- Starting {Id} (domain={Domain}, budget remaining: ${Rem:F2}) ---",
@@ -714,11 +748,41 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
     await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(orderedResults, new JsonSerializerOptions { WriteIndented = true }));
     await File.WriteAllTextAsync(htmlPath, BuildHtmlReport(orderedResults, source, dir, router.SpentUsd, timestamp));
 
+    // Provenance envelope: record which models/configs produced this run so the
+    // results JSON (which carries only per-tier call counts, not model ids) can be
+    // attributed later. Written as a sibling .meta.json to keep the bare-array
+    // bench-*.json backward-compatible with existing analysis tooling.
+    var envelope = new BenchRunEnvelope
+    {
+        Timestamp = timestamp,
+        Source = source,
+        ProblemDirectory = Path.GetFullPath(dir),
+        ProblemCount = orderedResults.Count,
+        MaxEpisodes = maxEpisodes,
+        MaxTurns = maxTurns,
+        Parallelism = parallelism,
+        BudgetCapUsd = nexusConfig.BudgetCapUsd,
+        SpentUsd = router.SpentUsd,
+        // Tier→model mapping as configured for this run. Tiers 1/2/3 are DeepSeek in
+        // the current wiring; the literal ids live in DeepSeekClient's factories.
+        ModelTier1 = "deepseek-v4-flash",
+        ModelTier2 = "deepseek-v4-flash",
+        ModelTier3 = "deepseek-v4-pro",
+        DeepSeekBaseUrl = nexusConfig.DeepSeekBaseUrl,
+        GeminiModel = nexusConfig.GeminiModel,
+        QwenCloudModel = nexusConfig.QwenCloudModelTag,
+        SolvedCount = orderedResults.Count(r => r.Result.Outcome == ProofOutcome.Solved),
+    };
+    var metaPath = Path.Combine(outDir, $"bench-{timestamp}.meta.json");
+    await File.WriteAllTextAsync(metaPath,
+        JsonSerializer.Serialize(envelope, new JsonSerializerOptions { WriteIndented = true }));
+
     Console.WriteLine();
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine($"Results saved:");
     Console.WriteLine($"  JSON: {jsonPath}");
     Console.WriteLine($"  HTML: {htmlPath}");
+    Console.WriteLine($"  Provenance: {metaPath}  (model ids + config for this run)");
     Console.ResetColor();
     return 0;
 }
@@ -1171,3 +1235,33 @@ static string BuildFossilAnalysisHtml(NexusAgent.Core.Models.FossilAnalysis a, s
 
 /// <summary>Captures per-problem bench results with metadata for reporting.</summary>
 record BenchRecord(string Id, string Domain, string Statement, ProofResult Result);
+
+/// <summary>
+/// Run-level provenance envelope, written to bench-{timestamp}.meta.json alongside
+/// the results. ProofResult records only per-tier call counts (never the model id),
+/// so without this envelope a run cannot be attributed to a specific model after the
+/// fact — a real problem for a repo that cites benchmark numbers. Captures the tier→model
+/// mapping, the budget, and the search knobs as configured for THIS run.
+/// </summary>
+record BenchRunEnvelope
+{
+    public required string Timestamp { get; init; }
+    public required string Source { get; init; }
+    public required string ProblemDirectory { get; init; }
+    public required int ProblemCount { get; init; }
+    public required int MaxEpisodes { get; init; }
+    public required int MaxTurns { get; init; }
+    public required int Parallelism { get; init; }
+    public required decimal BudgetCapUsd { get; init; }
+    public required decimal SpentUsd { get; init; }
+    /// <summary>Model id backing Tier 1 (early/exploratory turns). Currently deepseek-v4-flash.</summary>
+    public required string ModelTier1 { get; init; }
+    /// <summary>Model id backing Tier 2 (focused turns after Tier 1 stalls). Currently deepseek-v4-flash.</summary>
+    public required string ModelTier2 { get; init; }
+    /// <summary>Model id backing Tier 3 (hard problems / late episodes). Currently deepseek-v4-pro.</summary>
+    public required string ModelTier3 { get; init; }
+    public required string DeepSeekBaseUrl { get; init; }
+    public string? GeminiModel { get; init; }
+    public string? QwenCloudModel { get; init; }
+    public int SolvedCount { get; init; }
+}

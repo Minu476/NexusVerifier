@@ -16,6 +16,11 @@ public sealed record LlmResponse
 {
     public required string Content { get; init; }
     public required LlmTier Tier { get; init; }
+    /// <summary>The concrete model id that produced this response (e.g. "deepseek-v4-flash").
+    /// Used for benchmark provenance so a run's output can be attributed to a specific
+    /// model even after the tier→model mapping changes. Null for tiers that have no
+    /// single backing model (e.g. fossil replay).</summary>
+    public string? ModelId { get; init; }
     public required int InputTokens { get; init; }
     public required int OutputTokens { get; init; }
     public required int CachedInputTokens { get; init; }

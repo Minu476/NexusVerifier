@@ -16,7 +16,20 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
     public Neo4jClient(IOptions<NexusConfig> config, ILogger<Neo4jClient> log)
     {
         var c = config.Value;
-        _driver = GraphDatabase.Driver(c.Neo4jUri, AuthTokens.Basic(c.Neo4jUser, c.Neo4jPassword));
+        // Explicit connection timeout so a dead/unreachable Neo4j surfaces as an error instead
+        // of blocking indefinitely. Reasonable defensive config on its own merits.
+        //
+        // NOTE: this was added while investigating a bench hang under parallel load and it did
+        // NOT fix that hang — the process still stalled at parallelism 12, 6, and 3. Whatever
+        // that bug is, it is not connection-acquisition timeout. Keep this config, but do not
+        // read it as a fix; see data/results/PIVOT_AB2_NULL_RESULT_2026-08-04.md ("Why this
+        // stopped at 3 of 6 runs"). The hang is still open and still undiagnosed — reports
+        // describe both a mid-run stall and a post-completion non-exit, which are different
+        // bugs, so the "undisposed AsyncSession" hypothesis is unconfirmed.
+        _driver = GraphDatabase.Driver(c.Neo4jUri, AuthTokens.Basic(c.Neo4jUser, c.Neo4jPassword),
+            builder => builder
+                .WithMaxConnectionPoolSize(100)
+                .WithConnectionTimeout(TimeSpan.FromSeconds(30)));
         _database = c.Neo4jDatabase;
         _log = log;
     }
@@ -233,6 +246,45 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
             var cursor = await tx.RunAsync("MATCH (f:ProofFossil) RETURN count(f) AS n");
             var rec = await cursor.SingleAsync();
             return rec["n"].As<int>();
+        });
+    }
+
+    public async Task<IReadOnlyList<ProofFossil>> GetAllFossilsAsync(CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                """
+                MATCH (f:ProofFossil)
+                WHERE f.stateVector IS NOT NULL AND f.tacticBlock IS NOT NULL
+                RETURN f.id AS id, f.subgoalText AS subgoalText, f.tacticBlock AS tacticBlock,
+                       f.stateVector AS stateVector, f.domainTag AS domainTag,
+                       f.sorryCountBefore AS sorryCountBefore, f.sorryCountAfter AS sorryCountAfter,
+                       f.sourceProblems AS sourceProblems, f.useCount AS useCount
+                """);
+            var fossils = new List<ProofFossil>();
+            await foreach (var rec in cursor)
+            {
+                var vecList = rec["stateVector"].As<List<object>>();
+                if (vecList is null || vecList.Count == 0) continue;
+                var vector = vecList.Select(d => (float)Convert.ToDouble(d)).ToArray();
+                fossils.Add(new ProofFossil
+                {
+                    Id = rec["id"].As<string>() ?? Guid.NewGuid().ToString("N"),
+                    SubgoalText = rec["subgoalText"].As<string>() ?? "",
+                    TacticBlock = rec["tacticBlock"].As<string>() ?? "",
+                    StateVector = vector,
+                    DomainTag = rec["domainTag"].As<string>() ?? "other",
+                    SorryCountBefore = rec["sorryCountBefore"].As<int>(),
+                    SorryCountAfter = rec["sorryCountAfter"].As<int>(),
+                    SourceProblems = rec["sourceProblems"].As<List<object>>()
+                        ?.Select(o => o.As<string>()).ToArray() ?? [],
+                    UseCount = rec["useCount"].As<int>(),
+                    ProvedAt = DateTime.UtcNow,
+                });
+            }
+            return (IReadOnlyList<ProofFossil>)fossils;
         });
     }
 

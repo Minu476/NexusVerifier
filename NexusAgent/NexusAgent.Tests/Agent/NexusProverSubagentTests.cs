@@ -25,12 +25,16 @@ public sealed class NexusProverSubagentTests
     private readonly Mock<ILlmClient> _flash = new();
     private readonly Mock<ILlmClient> _pro = new();
     private readonly Mock<INeo4jClient> _neo4j = new();
+    private readonly Mock<IToposTacticStore> _toposStore = new();
     private readonly NexusProverSubagent _agent;
 
     public NexusProverSubagentTests()
     {
         var config = Options.Create(new NexusConfig { TacticVocabPath = "does_not_exist.json" });
         var encoder = new ProofStateEncoder(config, NullLogger<ProofStateEncoder>.Instance);
+
+        _toposStore.Setup(t => t.ProposeAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(Array.Empty<GraphTacticProposal>() as IReadOnlyList<GraphTacticProposal>);
 
         _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
         _flash.SetupGet(c => c.Tier).Returns(LlmTier.Tier2_DeepSeekFlash);
@@ -61,11 +65,12 @@ public sealed class NexusProverSubagentTests
         var promptBuilder = new PromptBuilder();
 
         _agent = new NexusProverSubagent(
-            _lean.Object, router, fossilizer, gate, cartographer, _neo4j.Object, encoder,
-            promptBuilder, NullLogger<NexusProverSubagent>.Instance);
+            _lean.Object, router, fossilizer, gate, cartographer, _neo4j.Object, _toposStore.Object,
+            encoder, promptBuilder, NullLogger<NexusProverSubagent>.Instance);
     }
 
-    private EpisodeContext MakeCtx(int maxTurns = 5, ProofGoalGraph? goalGraph = null) => new(
+    private EpisodeContext MakeCtx(int maxTurns = 5, ProofGoalGraph? goalGraph = null,
+        bool pivotGatesEnabled = true, int maxDiagnosesPerEpisode = 1) => new(
         ProblemId: "test-problem",
         ProblemStatement: "Prove 1 + 1 = 2",
         DomainTag: "algebra",
@@ -75,7 +80,9 @@ public sealed class NexusProverSubagentTests
         MaxTurns: maxTurns,
         FossilMatchThreshold: 0.75f,
         FossilDirectSubstituteThreshold: 0.90f,
-        GoalGraph: goalGraph ?? new ProofGoalGraph());
+        GoalGraph: goalGraph ?? new ProofGoalGraph(),
+        PivotGatesEnabled: pivotGatesEnabled,
+        MaxDiagnosesPerEpisode: maxDiagnosesPerEpisode);
 
     private static LlmResponse MakeLlmResp(string content) => new()
     {
@@ -192,7 +199,54 @@ public sealed class NexusProverSubagentTests
         var result = await _agent.RunEpisodeAsync(MakeCtx(maxTurns: 8), CancellationToken.None);
 
         Assert.Equal(EpisodeOutcome.StructuralGateRejection, result.Outcome);
-        Assert.True(result.TurnsUsed <= 2);
+        // After the obstruction-diagnosis gate (2026-08-03), the 2nd violation triggers a
+        // diagnosis call instead of immediate abort. The diagnosis (mocked to return a hacked
+        // sketch too) doesn't help, so a 3rd violation aborts. Allow up to 4 turns for the
+        // diagnosis round-trip + the post-diagnosis violation.
+        Assert.True(result.TurnsUsed <= 4);
+    }
+
+    [Theory]
+    [InlineData(0)]  // diagnosis gate never fires — behaves like PivotGatesEnabled=false
+    [InlineData(1)]  // default cap
+    [InlineData(3)]  // a generous cap
+    public async Task RunEpisodeAsync_AlwaysStructuralViolation_TerminatesRegardlessOfDiagnosisCap(
+        int maxDiagnosesPerEpisode)
+    {
+        // Safety-cap regression test (2026-08-03): a model that always reward-hacks (renames the
+        // theorem) must never loop cheat -> diagnose -> cheat -> diagnose forever. Each diagnosis
+        // resets the consecutive-violation counter, so without a hard cap on diagnoses-per-episode
+        // the episode could in principle keep resetting until MaxTurns. Prove termination holds for
+        // several cap values, not just the default, since the cap is now a config knob
+        // (OrchestratorConfig.MaxDiagnosesPerEpisode / EpisodeContext.MaxDiagnosesPerEpisode).
+        _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(SorryResult(1));
+
+        var alwaysHacked = MakeLlmResp("```lean\ntheorem hacked : 1 + 1 = 2 := by sorry\n```");
+        _qwen.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(alwaysHacked);
+        _flash.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(alwaysHacked);
+        _pro.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(alwaysHacked);
+
+        // Generous turn budget: if the cap did NOT bound the loop, this would run out the clock
+        // at MaxTurnsReached instead of aborting early via StructuralGateRejection.
+        const int maxTurns = 50;
+        var result = await _agent.RunEpisodeAsync(
+            MakeCtx(maxTurns: maxTurns, maxDiagnosesPerEpisode: maxDiagnosesPerEpisode),
+            CancellationToken.None);
+
+        Assert.Equal(EpisodeOutcome.StructuralGateRejection, result.Outcome);
+        // Each diagnosis buys at most 2 extra consecutive-violation turns before the counter
+        // maxes out again; with `maxDiagnosesPerEpisode` diagnoses allowed, the episode must
+        // abort well before MaxTurns regardless of the cap's value.
+        var upperBound = 2 * (maxDiagnosesPerEpisode + 1) + 1;
+        Assert.True(result.TurnsUsed <= upperBound,
+            $"episode used {result.TurnsUsed} turns, expected to abort within {upperBound} " +
+            $"(maxDiagnosesPerEpisode={maxDiagnosesPerEpisode})");
+        Assert.True(result.TurnsUsed < maxTurns,
+            "episode ran to MaxTurnsReached instead of terminating via the diagnosis cap");
     }
 
     [Fact]

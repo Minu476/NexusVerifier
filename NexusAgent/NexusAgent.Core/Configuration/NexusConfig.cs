@@ -19,6 +19,10 @@ namespace NexusAgent.Core.Configuration;
 ///   NEXUS_DEEPSEEK_BASE_URL → DeepSeekBaseUrl  (default: https://api.deepseek.com/v1)
 ///   NEXUS_BUDGET_USD        → BudgetCapUsd
 ///   NEXUS_TACTIC_VOCAB      → TacticVocabPath
+///   NEXUS_TURNS_BEFORE_ESCALATION       → TurnsBeforeEscalation       (default 3)
+///   NEXUS_TURNS_BEFORE_FLASH_ESCALATION → TurnsBeforeFlashEscalation  (default 6)
+///   NEXUS_EPISODES_BEFORE_PRO_ESCALATION → EpisodesBeforeProEscalation (default 20)
+///   NEXUS_TEMP_TIER1/2/3   → per-tier sampling temperature (default 0.4 / 0.3 / 0.1)
 ///
 /// OLLAMA_MODELS env var (e.g. /Volumes/WD-Black/Ollama-Models) is read by the
 /// Ollama daemon itself — nothing needed here; the API endpoint stays localhost:11434.
@@ -65,6 +69,26 @@ public sealed class NexusConfig
     // ---- Budget ----
     public decimal BudgetCapUsd { get; set; } = 200m;
 
+    // ---- Router escalation + sampling knobs (TieredLlmRouter) ----
+    // Defaults mirror the hardcoded RouterConfig values so unset env = prior behavior.
+    // Exposed so an "aggressive" run can push escalation thresholds or temperatures
+    // without recompiling. See TieredLlmRouter.Select for the routing ladder.
+    public int TurnsBeforeEscalation { get; set; } = 3;
+    public int TurnsBeforeFlashEscalation { get; set; } = 6;
+    public int EpisodesBeforeProEscalation { get; set; } = 20;
+    public double TempTier1 { get; set; } = 0.4;  // exploratory breadth
+    public double TempTier2 { get; set; } = 0.3;  // escape local minima
+    public double TempTier3 { get; set; } = 0.1;  // reasoning models need low temp
+
+    /// <summary>
+    /// Obstruction-diagnosis + between-episode reformulation gates (2026-08-03). When true
+    /// (default), the prover forces a natural-language diagnosis call after sustained
+    /// structural violations, and the orchestrator invokes a between-episode reformulation
+    /// (approach pivot) when episodes get stuck. When false, both revert to the original
+    /// abort-on-2nd-violation behavior. Toggled via NEXUS_PIVOT_GATES for A/B testing.
+    /// </summary>
+    public bool PivotGatesEnabled { get; set; } = true;
+
     /// <summary>
     /// Overlay environment variable values on top of whatever appsettings.json
     /// provided. Env vars always win. Call this after IOptions binding.
@@ -105,10 +129,31 @@ public sealed class NexusConfig
         if (decimal.TryParse(Environment.GetEnvironmentVariable("NEXUS_BUDGET_USD"), out var budget)
             && budget > 0)
             BudgetCapUsd = budget;
+
+        // Router escalation + sampling knobs. Unset env keeps the C# defaults above,
+        // which match the prior hardcoded RouterConfig values.
+        TurnsBeforeEscalation      = EnvInt("NEXUS_TURNS_BEFORE_ESCALATION",       TurnsBeforeEscalation);
+        TurnsBeforeFlashEscalation = EnvInt("NEXUS_TURNS_BEFORE_FLASH_ESCALATION", TurnsBeforeFlashEscalation);
+        EpisodesBeforeProEscalation = EnvInt("NEXUS_EPISODES_BEFORE_PRO_ESCALATION", EpisodesBeforeProEscalation);
+        TempTier1 = EnvDouble("NEXUS_TEMP_TIER1", TempTier1);
+        TempTier2 = EnvDouble("NEXUS_TEMP_TIER2", TempTier2);
+        TempTier3 = EnvDouble("NEXUS_TEMP_TIER3", TempTier3);
+
+        // Pivot gates toggle for A/B testing (default: on).
+        var pivotEnv = Environment.GetEnvironmentVariable("NEXUS_PIVOT_GATES");
+        if (!string.IsNullOrEmpty(pivotEnv))
+            PivotGatesEnabled = pivotEnv.Trim().Equals("1", StringComparison.OrdinalIgnoreCase)
+                              || pivotEnv.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Env(string name, string fallback) =>
         Environment.GetEnvironmentVariable(name)?.Trim() is { Length: > 0 } v ? v : fallback;
+
+    private static int EnvInt(string name, int fallback) =>
+        int.TryParse(Environment.GetEnvironmentVariable(name), out var v) ? v : fallback;
+
+    private static double EnvDouble(string name, double fallback) =>
+        double.TryParse(Environment.GetEnvironmentVariable(name), out var v) ? v : fallback;
 
     /// <summary>
     /// Checks <paramref name="primary"/> first, then <paramref name="shared"/>

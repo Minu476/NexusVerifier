@@ -23,6 +23,23 @@ Check  Filter   Fossil Vault
 
 ---
 
+## Documentation
+
+| Document | Audience | Purpose |
+|---|---|---|
+| [`docs/CONCEPTS.md`](docs/CONCEPTS.md) | **New readers — start here** | The mental model: the two modes (verification + proof search), the four subsystems, what NexusVerifier is *not*. |
+| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | New users | Real setup: clone with submodule, build `formal-conjectures` (~20 min), Neo4j, `.env`, first dry-run. |
+| [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md) | All users | All 8 commands (`solve`, `bench`, `schema`, `stats`, `probe`, `ingest-hg`, `scan-hg`, `ingest-parts`) with flags and outputs. |
+| [`docs/architecture.md`](docs/architecture.md) | Contributors | The unified internal picture (Lean oracle + agent pipeline + Neo4j + Topos), replacing the older 61-line stub. |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Operators | The full env-var surface (~19 vars) and three README-vs-code discrepancies worth knowing. |
+| [`docs/TOPOS_INTEGRATION_REPORT.md`](docs/TOPOS_INTEGRATION_REPORT.md) | Contributors | The Topos integration: what was built, the 12-test suite, Neo4j parity. |
+| [`docs/FC100_GAP_SET_METHODOLOGY.md`](docs/FC100_GAP_SET_METHODOLOGY.md) | Reviewers | The benchmark-corpus error writeup — read before citing any benchmark number. |
+| [`docs/hypergraph-engine.md`](docs/hypergraph-engine.md) | Researchers | The Lean-native hypergraph (Phase 1/2 — orthogonal to Topos). |
+| [`SPEC.md`](SPEC.md) | Contributors | The original design spec (May 2026; some sections predate recent pipeline hardening). |
+| [`SOLVED_PROBLEMS.md`](SOLVED_PROBLEMS.md) | Reviewers | Per-problem mathematical descriptions of highlight results (see the FC100 correction above). |
+
+---
+
 ## Research status
 
 This repository is an experimental research infrastructure project.
@@ -302,8 +319,8 @@ The axiom policy is controlled by `NEXUS_PARTS_NATIVE_DECIDE`:
 | Value | Behaviour |
 |-------|-----------|
 | `reject` (default) | Parts using `native_decide` / `Lean.trustCompiler` are rejected outright |
-| `warn` | Parts are accepted but flagged in output |
-| `allow` | No filtering applied |
+| `flag` | Parts are accepted but tagged `:native-flagged` in `SourceProblems` |
+| (anything else) | Falls through to `reject` — `warn`/`allow` (documented in older versions of this README and `.env.example`) are not implemented |
 
 A proof is **Verified** when its axiom closure is a subset of
 `{propext, Classical.choice, Quot.sound}` — the standard Lean 4 logical foundation.
@@ -314,6 +331,10 @@ unverified reduction paths and are rejected under the `reject` policy.
 and indicate how the proven statement relates to the original conjecture — a full-strength
 theorem can be axiom-clean, and a weaker variant can still be axiom-unsound. These are
 reported alongside the verification result, not as a sub-grade of it.
+
+> **Full configuration surface** (the ~19 env vars the code actually reads, beyond the 8 listed
+> below): see [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md). It also documents two other
+> README-vs-code discrepancies worth knowing.
 
 ---
 

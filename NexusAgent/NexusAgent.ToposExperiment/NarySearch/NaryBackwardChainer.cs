@@ -3,6 +3,7 @@ using RichLearning.V2.Abstractions;
 using RichLearning.V2.Memory;
 using RichLearning.V2.Models;
 using Topos.Hypergraph;
+using Topos.Hypergraph.Knowledge;
 
 namespace NexusAgent.ToposExperiment.NarySearch;
 
@@ -204,6 +205,39 @@ internal sealed class NaryBackwardChainer
         pathVisited.Remove(goalHash);
         return NaryProofSearch.DeadEnd(lastNodeId);
     }
+
+    /// <summary>
+    /// Static, whole-graph structural-cycle diagnostic over the Before→After (Anchor→Target)
+    /// goal-dependency adjacency, using Topos's <see cref="DirectedTraversal.DirectedScc"/>
+    /// (external/Topos, M11 phase 1 — bumped 2026-08-04, Task 4 of
+    /// docs/SESSION_HANDOFF_2026-08-03.md). Returns every strongly-connected component with more
+    /// than one member: a goal genuinely, mutually dependent on itself through some chain of
+    /// tactic applications — the AND-OR analogue of the circular-derivation bug
+    /// <c>Topos.Samples.ChatMemory.DetectCircularDerivations</c> catches in that domain, and
+    /// exactly what <c>docs/NEXUS_VERIFIER_INTEGRATION_FINDINGS.md</c> finding #4 (this project's
+    /// own hand-off note to Topos) flagged: <c>HasCycle</c> is role-blind and trivially true on
+    /// any real n-ary hypergraph, so this chainer correctly avoided it and hand-rolled the
+    /// per-DFS-path <c>pathVisited</c> guard in <see cref="SearchRecursiveAsync"/> instead.
+    ///
+    /// <b>Deliberately additive, not a replacement for <c>pathVisited</c>.</b> The two answer
+    /// related but different questions. <c>pathVisited</c> is reactive and path-scoped: it stops
+    /// the *current* recursive call the instant it revisits a goal already active on *this*
+    /// specific DFS path, which is exactly the termination guarantee live proof search needs
+    /// (ordered-candidate exploration, fuel budget, credit assignment — all tuned around and
+    /// tested against that exact behavior; see the 12 chainer/parity tests in
+    /// <c>NexusAgent.ToposExperiment.Tests</c>). A static SCC block is strictly more
+    /// conservative: it would refuse to explore ANY tactic-application whose goal sits in a
+    /// cyclic component at all, even along a specific path that never actually traverses the
+    /// cycle — which could silently reject provable goals, not just infinite ones. Swapping the
+    /// runtime guard for this was judged too large a semantic change to a tested search
+    /// algorithm to make without the ability to validate against a real run. This method is the
+    /// safe, valuable slice: a whole-graph diagnostic a caller can run before or alongside
+    /// search to surface genuinely malformed goal-dependency structure, without touching the
+    /// search's own termination behavior.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<Handle>> DetectStructuralCycles() =>
+        [.. _kernel.DirectedScc(ToposAppliesAdapter.BeforeRole, ToposAppliesAdapter.AfterRole)
+            .Where(component => component.Count > 1)];
 
     /// <summary>
     /// The OR-branch candidate set: every edge-vertex in which <paramref name="goalHandle"/>
