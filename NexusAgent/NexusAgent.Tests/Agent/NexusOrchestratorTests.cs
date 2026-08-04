@@ -24,6 +24,7 @@ public sealed class NexusOrchestratorTests
     private readonly Mock<ILlmClient> _flash = new();
     private readonly Mock<ILlmClient> _pro = new();
     private readonly Mock<INeo4jClient> _neo4j = new();
+    private readonly Mock<IToposTacticStore> _toposStore = new();
     private readonly NexusOrchestrator _orchestrator;
     private readonly TieredLlmRouter _router;
 
@@ -31,6 +32,9 @@ public sealed class NexusOrchestratorTests
     {
         var config = Options.Create(new NexusConfig { TacticVocabPath = "does_not_exist.json" });
         var encoder = new ProofStateEncoder(config, NullLogger<ProofStateEncoder>.Instance);
+
+        _toposStore.Setup(t => t.ProposeAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(Array.Empty<GraphTacticProposal>() as IReadOnlyList<GraphTacticProposal>);
 
         _qwen.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
         _flash.SetupGet(c => c.Tier).Returns(LlmTier.Tier2_DeepSeekFlash);
@@ -65,8 +69,8 @@ public sealed class NexusOrchestratorTests
         var promptBuilder = new PromptBuilder();
 
         var subagent = new NexusProverSubagent(
-            _lean.Object, _router, fossilizer, gate, cartographer, _neo4j.Object, encoder,
-            promptBuilder, NullLogger<NexusProverSubagent>.Instance);
+            _lean.Object, _router, fossilizer, gate, cartographer, _neo4j.Object, _toposStore.Object,
+            encoder, promptBuilder, NullLogger<NexusProverSubagent>.Instance);
         var planner = new BestFirstGraphPlanner(
             _neo4j.Object,
             _lean.Object,
@@ -74,7 +78,7 @@ public sealed class NexusOrchestratorTests
             NullLogger<BestFirstGraphPlanner>.Instance);
 
         _orchestrator = new NexusOrchestrator(
-            subagent, planner, _lean.Object, _neo4j.Object, _router,
+            subagent, planner, _lean.Object, _neo4j.Object, _router, new PromptBuilder(),
             NullLogger<NexusOrchestrator>.Instance);
     }
 

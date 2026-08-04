@@ -86,15 +86,16 @@ public sealed class TieredLlmRouter
         RouterContext ctx, LlmRequest request, CancellationToken ct)
     {
         var client = Select(ctx);
-        // Reasoning models (Tier 3) benefit from low temperature — their chain-of-thought
-        // already provides the exploration. Flash (Tier 2) works best at 0.3 — enough
-        // diversity to escape local minima without the noise of 0.4. Qwen local (Tier 1)
-        // keeps the default 0.4 for exploratory breadth.
+        // Per-tier sampling temperatures. Defaults (Tier1=0.4 exploratory breadth,
+        // Tier2=0.3 to escape local minima, Tier3=0.1 because reasoning models need low
+        // temp) are overridable via NEXUS_TEMP_TIER1/2/3 so an aggressive run can tune
+        // sampling without recompiling. See NexusConfig.ApplyEnvironmentOverrides.
         var effectiveRequest = client.Tier switch
         {
-            LlmTier.Tier3_PremiumCloud  => request with { Temperature = 0.1 },
-            LlmTier.Tier2_DeepSeekFlash => request with { Temperature = 0.3 },
-            _                           => request,  // Tier1: keep 0.4 for exploratory breadth
+            LlmTier.Tier3_PremiumCloud  => request with { Temperature = _cfg.TempTier3 },
+            LlmTier.Tier2_DeepSeekFlash => request with { Temperature = _cfg.TempTier2 },
+            LlmTier.Tier1_Cheap         => request with { Temperature = _cfg.TempTier1 },
+            _                           => request,
         };
         try
         {
@@ -106,11 +107,18 @@ public sealed class TieredLlmRouter
             (ex.StatusCode == System.Net.HttpStatusCode.PaymentRequired ||
              ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            // Latch the circuit breaker — no fallback model available.
+            // Latch the circuit breaker — no fallback model available. This is a
+            // process-level state (bad key or exhausted billing) that retrying
+            // won't fix: once latched, every remaining problem's LLM call throws
+            // InvalidOperationException, so the in-flight problems finish failing
+            // and no new work can make progress. Distinct from transient 429/5xx,
+            // which are retried inside DeepSeekClient and never reach here.
             _deepSeekUnavailable = true;
             _log.LogError(
-                "DeepSeek API unavailable ({Status}); circuit breaker latched — all further calls will throw",
-                ex.StatusCode);
+                "DeepSeek API unavailable ({Status}); circuit breaker latched — this is a "
+                + "credentials/billing state (not transient), so the remaining run cannot make "
+                + "LLM progress. Spent so far: ${Spent:F2} of ${Cap:F2}.",
+                ex.StatusCode, SpentUsd, _cfg.BudgetCapUsd);
             throw;
         }
     }
@@ -135,4 +143,9 @@ public sealed record RouterConfig
     public int TurnsBeforeEscalation { get; init; } = 3;
     public int TurnsBeforeFlashEscalation { get; init; } = 6;  // raised from 4 to reduce premature Pro escalation
     public int EpisodesBeforeProEscalation { get; init; } = 20;
+    /// <summary>Sampling temperature per tier. Defaults match the prior hardcoded values;
+    /// overridable via NEXUS_TEMP_TIER1/2/3 for tuning an aggressive run without recompiling.</summary>
+    public double TempTier1 { get; init; } = 0.4;
+    public double TempTier2 { get; init; } = 0.3;
+    public double TempTier3 { get; init; } = 0.1;
 }

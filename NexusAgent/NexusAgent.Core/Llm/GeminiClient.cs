@@ -86,6 +86,7 @@ public sealed class GeminiClient : ILlmClient
         {
             Content = content,
             Tier = Tier,
+            ModelId = _config.GeminiModel,
             InputTokens = payload.Usage?.PromptTokens ?? 0,
             OutputTokens = payload.Usage?.CompletionTokens ?? 0,
             CachedInputTokens = 0,

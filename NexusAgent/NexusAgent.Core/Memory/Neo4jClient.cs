@@ -236,6 +236,45 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
         });
     }
 
+    public async Task<IReadOnlyList<ProofFossil>> GetAllFossilsAsync(CancellationToken ct)
+    {
+        await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                """
+                MATCH (f:ProofFossil)
+                WHERE f.stateVector IS NOT NULL AND f.tacticBlock IS NOT NULL
+                RETURN f.id AS id, f.subgoalText AS subgoalText, f.tacticBlock AS tacticBlock,
+                       f.stateVector AS stateVector, f.domainTag AS domainTag,
+                       f.sorryCountBefore AS sorryCountBefore, f.sorryCountAfter AS sorryCountAfter,
+                       f.sourceProblems AS sourceProblems, f.useCount AS useCount
+                """);
+            var fossils = new List<ProofFossil>();
+            await foreach (var rec in cursor)
+            {
+                var vecList = rec["stateVector"].As<List<object>>();
+                if (vecList is null || vecList.Count == 0) continue;
+                var vector = vecList.Select(d => (float)Convert.ToDouble(d)).ToArray();
+                fossils.Add(new ProofFossil
+                {
+                    Id = rec["id"].As<string>() ?? Guid.NewGuid().ToString("N"),
+                    SubgoalText = rec["subgoalText"].As<string>() ?? "",
+                    TacticBlock = rec["tacticBlock"].As<string>() ?? "",
+                    StateVector = vector,
+                    DomainTag = rec["domainTag"].As<string>() ?? "other",
+                    SorryCountBefore = rec["sorryCountBefore"].As<int>(),
+                    SorryCountAfter = rec["sorryCountAfter"].As<int>(),
+                    SourceProblems = rec["sourceProblems"].As<List<object>>()
+                        ?.Select(o => o.As<string>()).ToArray() ?? [],
+                    UseCount = rec["useCount"].As<int>(),
+                    ProvedAt = DateTime.UtcNow,
+                });
+            }
+            return (IReadOnlyList<ProofFossil>)fossils;
+        });
+    }
+
     public async Task<FossilAnalysis> FossilAnalysisAsync(CancellationToken ct)
     {
         await using var session = _driver.AsyncSession(o => o.WithDatabase(_database));

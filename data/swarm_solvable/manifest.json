@@ -1,0 +1,188 @@
+[
+  {
+    "file": "data/swarm_solvable/.lean",
+    "bare": ".lean",
+    "decl": "unknown..lean",
+    "fresh": "g_.lean_new"
+  },
+  {
+    "file": "data/swarm_solvable/KTExtendsK.lean",
+    "bare": "KTExtendsK",
+    "decl": "Arxiv.\u00ab1308.0994\u00bb.KTExtendsK",
+    "fresh": "g_KTExtendsK_new"
+  },
+  {
+    "file": "data/swarm_solvable/a_0.lean",
+    "bare": "a_0",
+    "decl": "OeisA280831.a_0",
+    "fresh": "g_a_0_new"
+  },
+  {
+    "file": "data/swarm_solvable/a_6.lean",
+    "bare": "a_6",
+    "decl": "OeisA67720.a_6",
+    "fresh": "g_a_6_new"
+  },
+  {
+    "file": "data/swarm_solvable/a_65.lean",
+    "bare": "a_65",
+    "decl": "OeisA56777.a_65",
+    "fresh": "g_a_65_new"
+  },
+  {
+    "file": "data/swarm_solvable/ame_2_exists.lean",
+    "bare": "ame_2_exists",
+    "decl": "OpenQuantumProblem35.ame_2_exists",
+    "fresh": "g_ame_2_exists_new"
+  },
+  {
+    "file": "data/swarm_solvable/ame_3_exists.lean",
+    "bare": "ame_3_exists",
+    "decl": "OpenQuantumProblem35.ame_3_exists",
+    "fresh": "g_ame_3_exists_new"
+  },
+  {
+    "file": "data/swarm_solvable/bb84Family_not_isSICFamily.lean",
+    "bare": "bb84Family_not_isSICFamily",
+    "decl": "OpenQuantumProblem23.bb84Family_not_isSICFamily",
+    "fresh": "g_bb84Family_not_isSICFamily_new"
+  },
+  {
+    "file": "data/swarm_solvable/boundaryCount_univ.lean",
+    "bare": "boundaryCount_univ",
+    "decl": "Mathoverflow10799.boundaryCount_univ",
+    "fresh": "g_boundaryCount_univ_new"
+  },
+  {
+    "file": "data/swarm_solvable/congruentNumber_7.lean",
+    "bare": "congruentNumber_7",
+    "decl": "CongruentNumber.congruentNumber_7",
+    "fresh": "g_congruentNumber_7_new"
+  },
+  {
+    "file": "data/swarm_solvable/count_false_morphism.lean",
+    "bare": "count_false_morphism",
+    "decl": "OeisA6697.count_false_morphism",
+    "fresh": "g_count_false_morphism_new"
+  },
+  {
+    "file": "data/swarm_solvable/distinctSubsetSums_1_2.lean",
+    "bare": "distinctSubsetSums_1_2",
+    "decl": "Erdos350.distinctSubsetSums_1_2",
+    "fresh": "g_distinctSubsetSums_1_2_new"
+  },
+  {
+    "file": "data/swarm_solvable/eqSystem4_has_solution_d2.lean",
+    "bare": "eqSystem4_has_solution_d2",
+    "decl": "MonochromaticQuantumGraph.eqSystem4_has_solution_d2",
+    "fresh": "g_eqSystem4_has_solution_d2_new"
+  },
+  {
+    "file": "data/swarm_solvable/eventually_palindrome_base10.lean",
+    "bare": "eventually_palindrome_base10",
+    "decl": "LychrelNumbers.eventually_palindrome_base10",
+    "fresh": "g_eventually_palindrome_base10_new"
+  },
+  {
+    "file": "data/swarm_solvable/example_maximal_sidon.lean",
+    "bare": "example_maximal_sidon",
+    "decl": "Erdos42.example_maximal_sidon",
+    "fresh": "g_example_maximal_sidon_new"
+  },
+  {
+    "file": "data/swarm_solvable/f_undefined_at_2.lean",
+    "bare": "f_undefined_at_2",
+    "decl": "Erdos1054.f_undefined_at_2",
+    "fresh": "g_f_undefined_at_2_new"
+  },
+  {
+    "file": "data/swarm_solvable/firstCol_normSq.lean",
+    "bare": "firstCol_normSq",
+    "decl": "OpenQuantumProblem13.Qubit.firstCol_normSq",
+    "fresh": "g_firstCol_normSq_new"
+  },
+  {
+    "file": "data/swarm_solvable/first_three_odd_primes.lean",
+    "bare": "first_three_odd_primes",
+    "decl": "Erdos141.first_three_odd_primes",
+    "fresh": "g_first_three_odd_primes_new"
+  },
+  {
+    "file": "data/swarm_solvable/flt_of_beal_conjecture.lean",
+    "bare": "flt_of_beal_conjecture",
+    "decl": "BealConjecture.flt_of_beal_conjecture",
+    "fresh": "g_flt_of_beal_conjecture_new"
+  },
+  {
+    "file": "data/swarm_solvable/hasConstantOverlapSq_singleton.lean",
+    "bare": "hasConstantOverlapSq_singleton",
+    "decl": "OpenQuantumProblem23.hasConstantOverlapSq_singleton",
+    "fresh": "g_hasConstantOverlapSq_singleton_new"
+  },
+  {
+    "file": "data/swarm_solvable/hasGap_empty.lean",
+    "bare": "hasGap_empty",
+    "decl": "Green32.hasGap_empty",
+    "fresh": "g_hasGap_empty_new"
+  },
+  {
+    "file": "data/swarm_solvable/isClusterPrime_97_isLeast_non_cluster.lean",
+    "bare": "isClusterPrime_97_isLeast_non_cluster",
+    "decl": "Erdos17.isClusterPrime_97_isLeast_non_cluster",
+    "fresh": "g_isClusterPrime_97_isLeast_non_cluster_new"
+  },
+  {
+    "file": "data/swarm_solvable/isUnitaryPerfect_60.lean",
+    "bare": "isUnitaryPerfect_60",
+    "decl": "Erdos1052.isUnitaryPerfect_60",
+    "fresh": "g_isUnitaryPerfect_60_new"
+  },
+  {
+    "file": "data/swarm_solvable/korselts_criterion.lean",
+    "bare": "korselts_criterion",
+    "decl": "AgohGiuga.korselts_criterion",
+    "fresh": "g_korselts_criterion_new"
+  },
+  {
+    "file": "data/swarm_solvable/lcmInterval_lt_example3.lean",
+    "bare": "lcmInterval_lt_example3",
+    "decl": "Erdos678.lcmInterval_lt_example3",
+    "fresh": "g_lcmInterval_lt_example3_new"
+  },
+  {
+    "file": "data/swarm_solvable/maxWeaklyDivisible_one.lean",
+    "bare": "maxWeaklyDivisible_one",
+    "decl": "Erdos56.maxWeaklyDivisible_one",
+    "fresh": "g_maxWeaklyDivisible_one_new"
+  },
+  {
+    "file": "data/swarm_solvable/not_isThick_of_finite.lean",
+    "bare": "not_isThick_of_finite",
+    "decl": "Erdos26.not_isThick_of_finite",
+    "fresh": "g_not_isThick_of_finite_new"
+  },
+  {
+    "file": "data/swarm_solvable/pellNumber_two.lean",
+    "bare": "pellNumber_two",
+    "decl": "PellNumbers.pellNumber_two",
+    "fresh": "g_pellNumber_two_new"
+  },
+  {
+    "file": "data/swarm_solvable/sicOverlapSq_three.lean",
+    "bare": "sicOverlapSq_three",
+    "decl": "OpenQuantumProblem23.sicOverlapSq_three",
+    "fresh": "g_sicOverlapSq_three_new"
+  },
+  {
+    "file": "data/swarm_solvable/star_smul_mul_smul.lean",
+    "bare": "star_smul_mul_smul",
+    "decl": "OpenQuantumProblem13.Qubit.star_smul_mul_smul",
+    "fresh": "g_star_smul_mul_smul_new"
+  },
+  {
+    "file": "data/swarm_solvable/tripleProduct_const.lean",
+    "bare": "tripleProduct_const",
+    "decl": "Arxiv.\u00ab1609.08688\u00bb.tripleProduct_const",
+    "fresh": "g_tripleProduct_const_new"
+  }
+]
