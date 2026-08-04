@@ -52,6 +52,13 @@ public enum ProofOutcome
     TimedOut,
     Aborted,
     LeanEnvironmentError,
+
+    /// <summary>Compiled, axiom-clean, and the theorem's own declaration signature is intact —
+    /// but the winning proof is (up to trivial wrapping) `exact &lt;original declaration&gt;`,
+    /// the answer-key citation exploit <see cref="Agent.CitationDetector"/> catches. This is not
+    /// a failure of the structural gate or of Lean's own checks; it is real, valid Lean that
+    /// does not constitute proof search. See docs/SESSION_HANDOFF_2026-08-03.md.</summary>
+    CitationExploit,
 }
 
 /// <summary>

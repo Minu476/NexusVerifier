@@ -99,11 +99,13 @@ public sealed class NexusOrchestrator
 
             if (plannerRun.Solved)
             {
-                await _neo4j.MarkProblemSolvedAsync(problem.Id, 1, ct);
+                var plannerOutcome = ClassifyFinalOutcome(problem, ProofOutcome.Solved, plannerRun.FinalSketch);
+                if (plannerOutcome == ProofOutcome.Solved)
+                    await _neo4j.MarkProblemSolvedAsync(problem.Id, 1, ct);
                 return new ProofResult
                 {
                     ProblemId = problem.Id,
-                    Outcome = ProofOutcome.Solved,
+                    Outcome = plannerOutcome,
                     FinalSketch = plannerRun.FinalSketch,
                     EpisodesUsed = 1,
                     TurnsUsed = plannerRun.Expansions,
@@ -249,8 +251,14 @@ public sealed class NexusOrchestrator
 
             if (result.Outcome == EpisodeOutcome.Solved)
             {
-                await _neo4j.MarkProblemSolvedAsync(problem.Id, ep + 1, ct);
-                return BuildResult(problem.Id, ProofOutcome.Solved, result.FinalSketch,
+                var episodeOutcome = ClassifyFinalOutcome(problem, ProofOutcome.Solved, result.FinalSketch);
+                if (episodeOutcome == ProofOutcome.Solved)
+                    await _neo4j.MarkProblemSolvedAsync(problem.Id, ep + 1, ct);
+                else
+                    _log.LogWarning(
+                        "Problem {Id}: solve rejected as a citation exploit (proof reduces to citing the original declaration {Orig}) — not marking solved",
+                        problem.Id, problem.OriginalDeclarationBareName);
+                return BuildResult(problem.Id, episodeOutcome, result.FinalSketch,
                     ep + 1, totalTurns, totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier,
                     totalCost, sw.Elapsed,
                     simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
@@ -451,6 +459,31 @@ public sealed class NexusOrchestrator
             totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
     }
 
+    /// <summary>
+    /// Downgrades <see cref="ProofOutcome.Solved"/> to <see cref="ProofOutcome.CitationExploit"/>
+    /// when the winning proof reduces to citing this problem's own original declaration — see
+    /// <see cref="CitationDetector"/>. No-op for every other outcome, and a no-op when the
+    /// problem carries no <see cref="ProblemInput.OriginalDeclarationBareName"/> (nothing to
+    /// check a citation against — e.g. a hand-authored, non-stub problem).
+    ///
+    /// Known gap, not fixed by this check: <see cref="NexusProverSubagent"/> fossilizes on ANY
+    /// sorry-count decrease, including the citation-exploit turn itself, before this method ever
+    /// runs — so a citation exploit can still contaminate the fossil vault / ToposTacticStore
+    /// even though it is correctly excluded from the reported outcome and from
+    /// <c>MarkProblemSolvedAsync</c> here. Fixing that requires this same check inside the
+    /// subagent's per-turn fossilize path, out of scope for this pass.
+    /// </summary>
+    private static ProofOutcome ClassifyFinalOutcome(ProblemInput problem, ProofOutcome outcome, string? finalSketch)
+    {
+        if (outcome != ProofOutcome.Solved) return outcome;
+        if (problem.OriginalDeclarationBareName is not { } origName) return outcome;
+        if (finalSketch is null) return outcome;
+
+        var proofBody = CitationDetector.ExtractProofBody(finalSketch);
+        var verdict = CitationDetector.Classify(proofBody, origName);
+        return verdict == CitationVerdict.Citation ? ProofOutcome.CitationExploit : outcome;
+    }
+
     private static ProofResult BuildResult(
         string id, ProofOutcome outcome, string? sketch,
         int episodes, int turns, int fossilHits, int fossilRetrievalSamples, int graphReplayHits, int[] byTier,
@@ -495,7 +528,13 @@ public sealed record ProblemInput(
     string DomainTag,
     string LeanFilePath,
     string Statement,
-    string InitialSketch);
+    string InitialSketch,
+    /// <summary>Bare name of this problem's own original (pre-stripping) declaration, parsed
+    /// from the stub's "Stripped stub: X → 'Y'" header comment by
+    /// <see cref="CitationDetector.ExtractOriginalDeclarationName"/> at load time. Null for
+    /// non-stub problems (no such header) — the citation-exploit gate is skipped in that case,
+    /// since there is nothing to check a citation against.</summary>
+    string? OriginalDeclarationBareName = null);
 
 public sealed record OrchestratorConfig
 {

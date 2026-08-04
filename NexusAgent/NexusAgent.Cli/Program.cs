@@ -614,7 +614,8 @@ static async Task<int> RunSolveAsync(IHost host, string[] args)
     var sketch = await File.ReadAllTextAsync(file);
 
     var orchestrator = host.Services.GetRequiredService<NexusOrchestrator>();
-    var input = new ProblemInput(id, "Manual", domain, file, statement, sketch);
+    var input = new ProblemInput(id, "Manual", domain, file, statement, sketch,
+        CitationDetector.ExtractOriginalDeclarationName(sketch));
     var config = new OrchestratorConfig();
 
     var result = await orchestrator.SolveAsync(input, config, CancellationToken.None);
@@ -681,7 +682,8 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
                 return;
             }
 
-            var input = new ProblemInput(id, source, domain, file, statement, sketch);
+            var input = new ProblemInput(id, source, domain, file, statement, sketch,
+                CitationDetector.ExtractOriginalDeclarationName(sketch));
             var config = new OrchestratorConfig
             {
                 MaxEpisodes        = maxEpisodes,

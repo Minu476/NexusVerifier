@@ -133,6 +133,55 @@ public sealed class NexusOrchestratorTests
         Assert.NotNull(result.FinalSketch);
     }
 
+    // ── Task 3 (docs/SESSION_HANDOFF_2026-08-03.md): citation-exploit gate, end-to-end ──
+
+    [Fact]
+    public async Task SolveAsync_WinningProofIsCitationOfOriginal_ReturnsCitationExploitNotSolved()
+    {
+        // Every CompileAsync call reports fully-proved regardless of input (this test only
+        // cares about outcome classification, not real Lean checking), so the episode solves
+        // on turn 0 with FinalSketch == InitialSketch — which here is a bare citation of the
+        // problem's own OriginalDeclarationBareName.
+        _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(SolvedResult);
+
+        var problem = MakeProblem() with
+        {
+            InitialSketch = "theorem t : ∀ n k : Nat, n.choose k ≥ 0 := by exact original_lemma",
+            OriginalDeclarationBareName = "original_lemma",
+        };
+
+        var result = await _orchestrator.SolveAsync(problem, QuickConfig(), CancellationToken.None);
+
+        Assert.Equal(ProofOutcome.CitationExploit, result.Outcome);
+        // A citation exploit must not poison Neo4j's "already solved" state — a genuinely
+        // solved fact would permanently block any future real attempt at this problem.
+        _neo4j.Verify(n => n.MarkProblemSolvedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SolveAsync_IndependentProof_StillReturnsSolved_NotOverRejected()
+    {
+        // The boundary the handoff calls out: knowing the original declaration's name must
+        // not turn every solve into a rejection. A proof that does not cite that specific
+        // declaration is still a real solve, even though OriginalDeclarationBareName is set.
+        _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(SolvedResult);
+
+        var problem = MakeProblem() with
+        {
+            InitialSketch = "theorem t : ∀ n k : Nat, n.choose k ≥ 0 := by exact Nat.zero_le _",
+            OriginalDeclarationBareName = "original_lemma",
+        };
+
+        var result = await _orchestrator.SolveAsync(problem, QuickConfig(), CancellationToken.None);
+
+        Assert.Equal(ProofOutcome.Solved, result.Outcome);
+        _neo4j.Verify(n => n.MarkProblemSolvedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     [Fact]
     public async Task SolveAsync_LeanEnvironmentError_ReturnsLeanEnvironmentError()
     {
