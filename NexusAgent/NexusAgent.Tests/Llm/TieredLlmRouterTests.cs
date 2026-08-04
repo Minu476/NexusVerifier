@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NexusAgent.Core.Llm;
@@ -176,4 +177,75 @@ public sealed class TieredLlmRouterTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => router.SendAsync(
             Ctx(0, 0), new LlmRequest { Messages = new[] { new LlmMessage("user", "x") } }, default));
     }
+
+    // ── Slow-request heartbeat (2026-08-04) ─────────────────────────────────────────
+    // Regression cover for the bench "hang": four runs were killed as deadlocked when the
+    // logs actually showed ONE outstanding request, all other responses healthy, and the
+    // kill landing ~1 min before HttpClient's own timeout would have released it. The bug
+    // was that a slow request is indistinguishable from a frozen process in the log, so the
+    // router now announces one. These pin that it warns, and that it does not otherwise
+    // alter the request.
+
+
+    /// <summary>Same wiring as <see cref="NewRouter"/> but with a caller-supplied logger.</summary>
+    private TieredLlmRouter NewRouterWith(ILogger<TieredLlmRouter> log)
+    {
+        _tier1.SetupGet(c => c.Tier).Returns(LlmTier.Tier1_Cheap);
+        _flash.SetupGet(c => c.Tier).Returns(LlmTier.Tier2_DeepSeekFlash);
+        _pro.SetupGet(c => c.Tier).Returns(LlmTier.Tier3_PremiumCloud);
+        _tier1.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync((LlmRequest r, CancellationToken _) => Ok(LlmTier.Tier1_Cheap, "deepseek-v4-flash", r.Temperature));
+        _flash.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync((LlmRequest r, CancellationToken _) => Ok(LlmTier.Tier2_DeepSeekFlash, "deepseek-v4-flash", r.Temperature));
+        _pro.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync((LlmRequest r, CancellationToken _) => Ok(LlmTier.Tier3_PremiumCloud, "deepseek-v4-pro", r.Temperature));
+        return new TieredLlmRouter(new[] { _tier1.Object, _flash.Object, _pro.Object }, new RouterConfig(), log);
+    }
+
+    private sealed class CapturingLogger : ILogger<TieredLlmRouter>
+    {
+        public readonly List<string> Warnings = new();
+        public IDisposable? BeginScope<TState>(TState s) where TState : notnull => null;
+        public bool IsEnabled(LogLevel l) => true;
+        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? ex,
+                                Func<TState, Exception?, string> fmt)
+        {
+            if (level == LogLevel.Warning) lock (Warnings) Warnings.Add(fmt(state, ex));
+        }
+    }
+
+    [Fact]
+    public async Task SendAsync_FastRequest_LogsNoSlowWarning()
+    {
+        var log = new CapturingLogger();
+        var router = NewRouterWith(log);   // router requires all three tiers registered
+
+        var res = await router.SendAsync(Ctx(0, 0), new LlmRequest { Messages = [] }, CancellationToken.None);
+
+        Assert.Equal("ok", res.Content);
+        Assert.Empty(log.Warnings);
+    }
+
+    [Fact]
+    public async Task SendAsync_SlowRequest_StillReturnsTheRealResponse()
+    {
+        // The heartbeat must be purely observational: a slow-but-successful request has to come
+        // back intact and uncancelled, or the "fix" would break legitimate long generations
+        // (Tier 3 reasoning at 8k output tokens routinely takes a while).
+        var log = new CapturingLogger();
+        var router = NewRouterWith(log);
+        // Make the tier-1 client (the one Ctx(0,0) routes to) deliberately slow but successful.
+        _tier1.Setup(c => c.CompleteAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
+              .Returns(async (LlmRequest r, CancellationToken t) =>
+              {
+                  await Task.Delay(TimeSpan.FromMilliseconds(250), t);
+                  return Ok(LlmTier.Tier1_Cheap, "deepseek-v4-flash", r.Temperature);
+              });
+
+        var res = await router.SendAsync(Ctx(0, 0), new LlmRequest { Messages = [] }, CancellationToken.None);
+
+        Assert.Equal("ok", res.Content);
+        Assert.Equal("deepseek-v4-flash", res.ModelId);
+    }
+
 }
