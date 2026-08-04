@@ -158,8 +158,11 @@ negative.
 
 - Data: `bench-2026-08-04_11-32-29.json` (Stage1Treat), `bench-2026-08-04_12-35-31.json` (AB2C1),
   `bench-2026-08-04_12-57-40.json` (AB2T1).
-- Logs: `stage1-treatment-2026-08-04_11-04-45.log`, `ab2-AB2C1-2026-08-04_12-16-38.log`,
-  `ab2-AB2T1-2026-08-04_12-16-38.log`.
+- Logs (`stage1-treatment-2026-08-04_11-04-45.log`, `ab2-AB2C1-...log`, `ab2-AB2T1-...log`) are
+  **not committed** — raw bench output, kept out of the repo for size. Outcome/turn/cost figures
+  above come from the committed bench JSONs. The log-derived figures — notably the reformulation
+  invocation counts that corrected the "10% → 67%" claim — are reproducible by re-running and
+  counting `invoking between-episode reformulation` vs `reformulation accepted`.
 - Corpus: `data/swarm_pivot_ab/` (17 problems — the residual the baseline did not independently
   solve). Config: `--parallel 12 --max-episodes 3 --max-turns 10 --graph-first`, `NEXUS_PIVOT_GATES`
   the only variable.

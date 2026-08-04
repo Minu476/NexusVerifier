@@ -115,7 +115,12 @@ NEXUS_PIVOT_GATES=1 ... --source PREVT1 --parallel 12 --max-episodes 3 --max-tur
 ```
 
 Data: `bench-2026-08-04_15-19-55.json` (control), `bench-2026-08-04_15-53-08.json` (treatment).
-Logs: `prev-ab-control.log`, `prev-ab-treatment.log`.
+Logs (`prev-ab-control.log`, `prev-ab-treatment.log`) are **not committed** — ~1.6 MB of raw
+bench output across this session, deliberately kept out of the repo. The per-problem outcomes,
+turn counts and costs quoted above all come from the committed bench JSONs; the log-derived
+figures (citation blocks, reformulation fired/accepted counts) are reproducible by re-running the
+commands above and grepping for `found sorryAx`, `invoking between-episode reformulation`, and
+`reformulation accepted`.
 
 Fresh source tags (`PREVC1`/`PREVT1`) were used deliberately: reusing a prior tag would hit
 `Program.cs`'s already-solved check and silently skip problems, which is how round 2's rerun would
