@@ -98,10 +98,12 @@ What the three rounds *did* establish is worth keeping:
   statistically powered.
 - Both arms share one Neo4j instance and control ran first, so fossil carryover is directional.
   Retrieval rates were low in prior rounds; not re-measured here.
-- 10 of 17 problems use the `sorry` fallback rather than deletion, so their citation is refused
-  post-hoc (`#print axioms`) rather than at parse time. The model therefore does not always get the
-  sharp same-turn compile error that deletion gives; on those problems the feedback is weaker than
-  full prevention would provide.
+- ~~10 of 17 problems use the `sorry` fallback rather than deletion~~ — **resolved 2026-08-04,
+  after this run.** All 17 targets are now deleted outright, so every citation fails at parse time
+  with `Unknown identifier`. Note this means THIS round's numbers were measured with the weaker
+  feedback on 10 of 17 problems; a re-run would give the pivot machinery marginally sharper signal
+  than it had here. Given the gates produced nothing on the 7 problems that already had hard
+  deletion, that is unlikely to change the conclusion, but it is not tested.
 
 ## Reproduction
 

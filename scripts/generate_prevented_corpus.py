@@ -260,6 +260,74 @@ def generate(stub_dir: Path, out_dir: Path, strategy: str) -> list[dict]:
     return results
 
 
+def enclosing_declaration(lines: list[str], idx: int) -> int | None:
+    """Index of the line starting the declaration that encloses `idx` (0-indexed)."""
+    starter = re.compile(r"^\s*(theorem|lemma|example|def|instance|abbrev)\s")
+    for i in range(min(idx, len(lines) - 1), -1, -1):
+        if starter.match(lines[i]):
+            return i
+    return None
+
+
+def sorry_declaration_at(path: Path, lineno: int) -> bool:
+    """Replace the proof of the declaration enclosing 1-indexed `lineno` with `sorry`."""
+    lines = path.read_text().split("\n")
+    start = enclosing_declaration(lines, lineno - 1)
+    if start is None:
+        return False
+    end = start + 1
+    while end < len(lines):
+        if lines[end].strip() and DECL_START.match(lines[end]):
+            break
+        end += 1
+    block = "\n".join(lines[start:end])
+    new_block, n = re.subn(r":=\s*by\b.*", ":= by\n  sorry", block, count=1, flags=re.S)
+    if not n:
+        new_block, n = re.subn(r":=(?!.*:=).*", ":= by\n  sorry", block, count=1, flags=re.S)
+    if not n:
+        return False
+    path.write_text("\n".join(lines[:start] + new_block.split("\n") + lines[end:]))
+    return True
+
+
+def repair_dependents(max_rounds: int = 8) -> tuple[bool, int]:
+    """Keep the target DELETED; sorry only the same-module declarations that cited it.
+
+    Deleting the target is what makes a citation a hard `Unknown identifier` compile error, which
+    is the sharp same-turn feedback the whole prevention exists to give. The obstacle is that a
+    module sometimes proves other results *via* the target — OpenQuantumProblems/35.lean proves
+    `ame_3_2_exists` by `simpa using ame_3_exists` — so removing it breaks the module.
+
+    The earlier approach fell back to `sorry`-ing the TARGET, which kept the module building but
+    left the target's name resolvable, degrading the feedback to a post-hoc `#print axioms`
+    rejection. This instead keeps the deletion and repairs the collateral: whatever the compiler
+    reports as newly-unresolved gets its own proof replaced by `sorry`. Those dependents are not
+    the thing under test, and a sorry-backed dependent cannot be used to cheat the target (it is a
+    weaker, specific instance).
+
+    Driven by real compiler output rather than static analysis, and iterated because sorrying one
+    dependent can expose another. Returns (all_modules_build, declarations_repaired).
+    """
+    repaired = 0
+    for _ in range(max_rounds):
+        ok, out = build_all()
+        if ok:
+            return True, repaired
+        errs = set(re.findall(
+            r"(FormalConjectures/Prevent/P_[A-Za-z0-9_]+\.lean):(\d+):\d+: .*?nknown identifier `([^`]+)`",
+            out))
+        if not errs:
+            return False, repaired  # a different failure — surface it rather than loop
+        progressed = False
+        for rel, line, _ident in errs:
+            if sorry_declaration_at(FC / rel, int(line)):
+                repaired += 1
+                progressed = True
+        if not progressed:
+            return False, repaired
+    return False, repaired
+
+
 def apply_fallback(rows: list[dict]) -> int:
     """Build; any prevent module that fails under `delete` is regenerated with `sorry`.
 
@@ -392,10 +460,16 @@ def main() -> int:
             return 1
 
         if a.strategy == "delete":
-            print("building to find modules where deletion breaks the source...")
-            n = apply_fallback(rows)
-            if n:
-                print(f"  switched {n} module(s) to the `sorry` fallback")
+            print("building; repairing same-module dependents of deleted targets...")
+            built, repaired = repair_dependents()
+            if repaired:
+                print(f"  sorry-ed {repaired} dependent declaration(s) to keep targets DELETED")
+            if not built:
+                # Only now consider giving up the deletion for the modules still failing.
+                print("  some modules still fail — falling back to sorry-ing the target there")
+                n = apply_fallback(rows)
+                if n:
+                    print(f"  switched {n} module(s) to the `sorry` fallback")
 
         for r in rows:
             if r["status"] == "generated":
