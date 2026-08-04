@@ -253,17 +253,41 @@ public sealed class NexusOrchestrator
             {
                 var episodeOutcome = ClassifyFinalOutcome(problem, ProofOutcome.Solved, result.FinalSketch);
                 if (episodeOutcome == ProofOutcome.Solved)
+                {
                     await _neo4j.MarkProblemSolvedAsync(problem.Id, ep + 1, ct);
+                    return BuildResult(problem.Id, ProofOutcome.Solved, result.FinalSketch,
+                        ep + 1, totalTurns, totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier,
+                        totalCost, sw.Elapsed,
+                        simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
+                        plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
+                        totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
+                }
                 else
+                {
+                    // Citation exploit detected — the model cited the original declaration instead
+                    // of doing proof search. Per Opus's review (2026-08-04): DON'T return here.
+                    // Treating the citation as "not solved" and continuing the search forces the
+                    // problem into the stuck-episode path, which triggers the reformulation gate —
+                    // converting citation-prone problems from dead weight into exactly the
+                    // stuck-then-pivot path the experiment exists to test.
+                    //
+                    // The citation is recorded in the final outcome only if no independent solve
+                    // is found in a later episode. Track it as the current "best" outcome.
                     _log.LogWarning(
-                        "Problem {Id}: solve rejected as a citation exploit (proof reduces to citing the original declaration {Orig}) — not marking solved",
-                        problem.Id, problem.OriginalDeclarationBareName);
-                return BuildResult(problem.Id, episodeOutcome, result.FinalSketch,
-                    ep + 1, totalTurns, totalFossilHits, totalFossilRetrievalSamples, totalGraphReplayHits, totalByTier,
-                    totalCost, sw.Elapsed,
-                    simCount > 0 ? simSum / simCount : 0f, bestMissed, totalStructuralGateRejections,
-                    plannerUsed, plannerExpansions, plannerAcceptedTransitions, legacyFallbackUsed,
-                    totalTier075Telemetry, goalGraphDedupHits: goalGraph.DedupHits);
+                        "Problem {Id}: episode {Ep} solve rejected as citation exploit (cites original declaration {Orig}) — continuing search",
+                        problem.Id, ep, problem.OriginalDeclarationBareName);
+                    // Record the citation sketch as the best (it did compile to 0 sorry) so the
+                    // next episode doesn't lose it — but DON'T reset stuckEpisodes. A citation
+                    // is not real progress, so consecutive citation-only episodes should trigger
+                    // the reformulation gate, not be treated as improvement.
+                    if (result.FinalSorryCount < bestSorryCount)
+                    {
+                        bestSorryCount = result.FinalSorryCount;
+                        bestSketch = result.FinalSketch;
+                    }
+                    // Fall through to the normal episode-end processing (don't return).
+                    // stuckEpisodes will increment below since citation ≠ improvement.
+                }
             }
 
             // Carry the best sketch (fewest sorries) forward, not just the last one.

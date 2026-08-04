@@ -136,12 +136,20 @@ public sealed class NexusOrchestratorTests
     // ── Task 3 (docs/SESSION_HANDOFF_2026-08-03.md): citation-exploit gate, end-to-end ──
 
     [Fact]
-    public async Task SolveAsync_WinningProofIsCitationOfOriginal_ReturnsCitationExploitNotSolved()
+    public async Task SolveAsync_WinningProofIsCitationOfOriginal_IsNotSolved_AndSearchContinues()
     {
-        // Every CompileAsync call reports fully-proved regardless of input (this test only
-        // cares about outcome classification, not real Lean checking), so the episode solves
-        // on turn 0 with FinalSketch == InitialSketch — which here is a bare citation of the
-        // problem's own OriginalDeclarationBareName.
+        // Contract CHANGED 2026-08-04 (citation-keeps-searching, per Opus's experiment review).
+        // Previously a detected citation returned ProofOutcome.CitationExploit immediately. That
+        // made the gate a *reporting* gate rather than a *search* gate: the episode ended before
+        // any stuck condition, so citation-prone problems could never reach the reformulation
+        // path — they were dead weight in both arms of the A/B, and a null result was expected
+        // by construction. Now a citation is treated as not-solved and the search continues, so
+        // the terminal outcome is whatever the continued search yields (here: the episode budget
+        // runs out), NOT CitationExploit.
+        //
+        // The two properties that must still hold are asserted below; the specific terminal
+        // enum value is deliberately not pinned, because it legitimately depends on what the
+        // continued search finds.
         _lean.Setup(l => l.CompileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
              .ReturnsAsync(SolvedResult);
 
@@ -153,9 +161,12 @@ public sealed class NexusOrchestratorTests
 
         var result = await _orchestrator.SolveAsync(problem, QuickConfig(), CancellationToken.None);
 
-        Assert.Equal(ProofOutcome.CitationExploit, result.Outcome);
-        // A citation exploit must not poison Neo4j's "already solved" state — a genuinely
-        // solved fact would permanently block any future real attempt at this problem.
+        // 1) A citation is never reported as a genuine solve.
+        Assert.NotEqual(ProofOutcome.Solved, result.Outcome);
+        // 2) A citation must not poison Neo4j's "already solved" state — a spurious solved flag
+        //    would make Program.cs's already-solved check permanently SKIP this problem on every
+        //    future run, silently shrinking the corpus (this exact hazard was found live in the
+        //    round-1 A/B data: 12 problems marked solved by citation).
         _neo4j.Verify(n => n.MarkProblemSolvedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }

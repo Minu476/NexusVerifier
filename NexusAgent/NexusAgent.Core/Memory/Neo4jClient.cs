@@ -16,7 +16,20 @@ public sealed class Neo4jClient : INeo4jClient, IAsyncDisposable
     public Neo4jClient(IOptions<NexusConfig> config, ILogger<Neo4jClient> log)
     {
         var c = config.Value;
-        _driver = GraphDatabase.Driver(c.Neo4jUri, AuthTokens.Basic(c.Neo4jUser, c.Neo4jPassword));
+        // Explicit connection timeout so a dead/unreachable Neo4j surfaces as an error instead
+        // of blocking indefinitely. Reasonable defensive config on its own merits.
+        //
+        // NOTE: this was added while investigating a bench hang under parallel load and it did
+        // NOT fix that hang — the process still stalled at parallelism 12, 6, and 3. Whatever
+        // that bug is, it is not connection-acquisition timeout. Keep this config, but do not
+        // read it as a fix; see data/results/PIVOT_AB2_NULL_RESULT_2026-08-04.md ("Why this
+        // stopped at 3 of 6 runs"). The hang is still open and still undiagnosed — reports
+        // describe both a mid-run stall and a post-completion non-exit, which are different
+        // bugs, so the "undisposed AsyncSession" hypothesis is unconfirmed.
+        _driver = GraphDatabase.Driver(c.Neo4jUri, AuthTokens.Basic(c.Neo4jUser, c.Neo4jPassword),
+            builder => builder
+                .WithMaxConnectionPoolSize(100)
+                .WithConnectionTimeout(TimeSpan.FromSeconds(30)));
         _database = c.Neo4jDatabase;
         _log = log;
     }
