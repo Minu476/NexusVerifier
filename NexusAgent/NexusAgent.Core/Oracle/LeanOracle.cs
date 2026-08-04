@@ -22,6 +22,15 @@ public sealed partial class LeanOracle : ILeanOracle
     private readonly INeo4jClient _neo4j;
     private readonly ILogger<LeanOracle> _log;
 
+    /// <summary>How long to wait for stdout/stderr to reach EOF after the process has exited.
+    /// Non-zero because a grandchild can still hold the inherited pipe handles open; bounded
+    /// because that wait would otherwise be unbounded (see RunLeanAsync's note).</summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>Drain bound after killing the process tree. The kill closes the pipes, so this
+    /// normally completes immediately; it exists so cleanup can never itself hang.</summary>
+    private static readonly TimeSpan PostKillDrainTimeout = TimeSpan.FromSeconds(5);
+
     public LeanOracle(
         IOptions<NexusConfig> config,
         INeo4jClient neo4j,
@@ -163,24 +172,55 @@ public sealed partial class LeanOracle : ILeanOracle
             using var timeout = new CancellationTokenSource(_config.LeanCompileTimeout);
             using var combined = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
 
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync(combined.Token);
-            var stderrTask = proc.StandardError.ReadToEndAsync(combined.Token);
+            // NOTE: deliberately NOT passing a CancellationToken to ReadToEndAsync.
+            //
+            // This is the bench-hang fix (2026-08-04). `lake env lean` spawns `lean` as a
+            // GRANDCHILD which inherits the stdout/stderr pipe handles. When `lake` exits but the
+            // grandchild is still alive, the pipes never reach EOF, so ReadToEndAsync never
+            // completes. Cancelling it does not help: a read already blocked on a pipe FD does
+            // not observe the token until data arrives, which never happens. The process then
+            // sits at 0% CPU indefinitely — the symptom reported as "the bench hangs under
+            // parallel load", misattributed to a Neo4j async-session deadlock (a Neo4j
+            // connection timeout was added and, correctly, did not fix it).
+            //
+            // Instead: leave the reads uncancelled and bound every wait with WaitAsync, and kill
+            // the whole process tree before draining. Killing closes the inherited handles, which
+            // is what actually lets the reads finish.
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
 
+            string stdout, stderr;
             try
             {
                 await proc.WaitForExitAsync(combined.Token);
+                // The drain needs its own bound for exactly the reason above — the process having
+                // exited does NOT imply its pipes are closed.
+                await Task.WhenAll(stdoutTask, stderrTask).WaitAsync(DrainTimeout, ct);
+                stdout = await stdoutTask;
+                stderr = await stderrTask;
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
             {
-                try { proc.Kill(entireProcessTree: true); } catch { /* race */ }
+                // Distinguish "the caller cancelled us" from "this compile overran"; only the
+                // latter is a compile timeout the caller should see as such.
+                var callerCancelled = ct.IsCancellationRequested;
+                try { proc.Kill(entireProcessTree: true); } catch { /* already gone */ }
+
+                // Killing the tree closes the pipes, so this normally returns immediately. Bounded
+                // anyway, and with CancellationToken.None so cleanup still runs when ct is dead.
+                try
+                {
+                    await Task.WhenAll(stdoutTask, stderrTask)
+                              .WaitAsync(PostKillDrainTimeout, CancellationToken.None);
+                }
+                catch { /* give up on output rather than wait; the compile is already forfeit */ }
+
                 sw.Stop();
+                if (callerCancelled) throw;
                 return ("", "", -1, sw.Elapsed, true);
             }
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
             sw.Stop();
-
             return (stdout, stderr, proc.ExitCode, sw.Elapsed, false);
         }
         finally
