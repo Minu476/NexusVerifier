@@ -5,3 +5,7 @@
 [submodule "formal-conjectures"]
 	path = formal-conjectures
 	url = https://github.com/google-deepmind/formal-conjectures.git
+
+[submodule "zeta-23-lean"]
+	path = zeta-23-lean
+	url = https://github.com/anthropics/zeta-23-lean.git
