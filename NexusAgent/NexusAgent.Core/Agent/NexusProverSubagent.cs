@@ -77,22 +77,6 @@ public sealed class NexusProverSubagent
         var consecutiveViolations = 0;             // consecutive structural gate rejections this episode
         LlmTier? tierCeiling = null;               // locked after first violation to demote away from Tier 3
         // ── Obstruction-diagnosis gate (2026-08-03, per OAI walkthroughs) ──────────
-        // When the prover hits a structural violation or sustained stall, force a natural-language
-        // diagnosis call before the next Lean-producing turn. The diagnosis asks the model to name
-        // the obstruction precisely and propose a substantively different approach — the
-        // diagnose-then-pivot discipline every frontier proof in the walkthroughs used. The
-        // diagnosis text replaces the bare "don't rename" warning with actual pivoting guidance.
-        string? obstructionDiagnosis = null;       // diagnosis prose, fed into next prover prompt
-        var diagnosisUsed = false;                 // true after a diagnosis was injected (consume once)
-        // Safety cap: prevent an unbounded cheat→diagnose→cheat→diagnose loop. Each diagnosis
-        // resets the consecutive-violation counter, so without a cap the model could alternate
-        // reward-hacking and diagnosis indefinitely. Hard-limit to ctx.MaxDiagnosesPerEpisode
-        // (default 1) diagnoses per episode — once exhausted, the next time it gets stuck after
-        // a diagnosis, it should abort, not diagnose again. Sourced from OrchestratorConfig so
-        // it can be tuned like the other episode-shaping knobs (MaxTurns, fossil thresholds, ...).
-        var maxDiagnosesPerEpisode = ctx.MaxDiagnosesPerEpisode;
-        var diagnosesThisEpisode = 0;
-
         for (int turn = 0; turn < ctx.MaxTurns; turn++)
         {
             ct.ThrowIfCancellationRequested();
@@ -393,10 +377,8 @@ public sealed class NexusProverSubagent
                         ctx.ProblemStatement, sketch, prevState,
                         cartoHint, fossilCandidates, warnings,
                         structuralViolationWarning: structuralViolationWarning,
-                        goalGraph: ctx.GoalGraph,
-                        obstructionDiagnosis: obstructionDiagnosis);
+                        goalGraph: ctx.GoalGraph);
                     structuralViolationWarning = null; // consumed
-                    obstructionDiagnosis = null;       // consumed
 
                     var routerCtx = new RouterContext
                     {
@@ -442,10 +424,8 @@ public sealed class NexusProverSubagent
                     ctx.ProblemStatement, sketch, prevState,
                     cartoHint, fossilCandidates, warnings,
                     structuralViolationWarning: structuralViolationWarning,
-                    goalGraph: ctx.GoalGraph,
-                    obstructionDiagnosis: obstructionDiagnosis);
+                    goalGraph: ctx.GoalGraph);
                 structuralViolationWarning = null; // consumed
-                obstructionDiagnosis = null;       // consumed
 
                 var routerCtx = new RouterContext
                 {
@@ -511,79 +491,14 @@ public sealed class NexusProverSubagent
                     _log.LogWarning(
                         "Turn {T}: tier ceiling locked to Tier2 after first structural violation", turn);
                 }
-                else if (consecutiveViolations == 2 && diagnosesThisEpisode < maxDiagnosesPerEpisode
-                         && ctx.PivotGatesEnabled)
-                {
-                    // ── Obstruction-diagnosis gate ──────────────────────────────────
-                    // Second violation: instead of aborting, force a diagnosis call. The model is
-                    // stuck and defaulting to reward-hacking — redirect that into diagnosing *why*
-                    // it's stuck and proposing a different approach (the walkthroughs discipline).
-                    // Reset the consecutive counter so it gets a fresh start with the diagnosis.
-                    _log.LogInformation(
-                        "Turn {T}: 2 consecutive structural violations — invoking obstruction-diagnosis gate",
-                        turn);
-
-                    var diagnosisRequest = _promptBuilder.BuildDiagnosisRequest(
-                        ctx.ProblemStatement, sketch, prevState,
-                        rejectionReason: "structural validity gate rejected the attempt (theorem declaration was modified)",
-                        failedAttemptCount: turn + 1);
-
-                    var diagnosisCtx = new RouterContext
-                    {
-                        EpisodeIndex = ctx.EpisodeIndex,
-                        TurnIndex = turn,
-                        TurnsSinceLastProgress = turnsSinceProgress,
-                        CurrentSorryCount = prevState.SorryCount,
-                        TierCeiling = tierCeiling,
-                    };
-
-                    try
-                    {
-                        var diagnosisResponse = await _router.SendAsync(diagnosisCtx, diagnosisRequest, ct);
-                        obstructionDiagnosis = diagnosisResponse.Content;
-                        diagnosisUsed = true;
-                        diagnosesThisEpisode++;
-                        llmCallsByTier[(int)diagnosisResponse.Tier]++;
-                        costAccum += diagnosisResponse.EstimatedCostUsd;
-
-                        _log.LogInformation(
-                            "Turn {T}: obstruction diagnosis received ({Len} chars) — injecting into next turn",
-                            turn, obstructionDiagnosis.Length);
-
-                        // Reset consecutive violations — the diagnosis is a fresh start.
-                        consecutiveViolations = 0;
-                        // Clear the bare warning — the diagnosis replaces it.
-                        structuralViolationWarning = null;
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.LogWarning(ex,
-                            "Turn {T}: obstruction-diagnosis call failed — falling back to abort", turn);
-                        // Diagnosis failed (e.g. circuit breaker) — abort as before.
-                        return new EpisodeResult(
-                            sketch,
-                            EpisodeOutcome.StructuralGateRejection,
-                            turn + 1,
-                            fossilHits,
-                            fossilRetrievalSamples,
-                            llmCallsByTier,
-                            AvgSim(fossilSimilarities),
-                            bestMissedSim,
-                            FinalSorryCount: lastResult.SorryCount,
-                            GraphReplayHits: graphReplayHits,
-                            CostUsd: costAccum)
-                        {
-                            Tier075Telemetry = graphTelemetry,
-                        };
-                    }
-                }
                 else
                 {
-                    // Third+ violation (or second after a diagnosis already used): demotion and
-                    // diagnosis didn't help — abort early.
+                    // Second+ violation: demotion didn't stop the hacking — abort early.
+                    // (The obstruction-diagnosis gate lived here 2026-08-03 → 2026-08-14;
+                    // removed after four null A/B rounds — docs/PIVOT_GATES_POSTMORTEM.md.)
                     _log.LogWarning(
-                        "Turn {T}: {N} consecutive structural violations (diagnosis already used: {Diag}) — aborting episode early",
-                        turn, consecutiveViolations, diagnosisUsed);
+                        "Turn {T}: {N} consecutive structural violations — aborting episode early",
+                        turn, consecutiveViolations);
                     return new EpisodeResult(
                         sketch,
                         EpisodeOutcome.StructuralGateRejection,
@@ -818,9 +733,7 @@ public sealed record EpisodeContext(
     int MaxTurns,
     float FossilMatchThreshold,
     float FossilDirectSubstituteThreshold,
-    ProofGoalGraph GoalGraph,
-    bool PivotGatesEnabled = true,
-    int MaxDiagnosesPerEpisode = 1);
+    ProofGoalGraph GoalGraph);
 
 public sealed record EpisodeResult(
     string FinalSketch,
