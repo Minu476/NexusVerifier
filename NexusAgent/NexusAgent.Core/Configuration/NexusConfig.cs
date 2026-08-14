@@ -81,15 +81,6 @@ public sealed class NexusConfig
     public double TempTier3 { get; set; } = 0.1;  // reasoning models need low temp
 
     /// <summary>
-    /// Obstruction-diagnosis + between-episode reformulation gates (2026-08-03). When true
-    /// (default), the prover forces a natural-language diagnosis call after sustained
-    /// structural violations, and the orchestrator invokes a between-episode reformulation
-    /// (approach pivot) when episodes get stuck. When false, both revert to the original
-    /// abort-on-2nd-violation behavior. Toggled via NEXUS_PIVOT_GATES for A/B testing.
-    /// </summary>
-    public bool PivotGatesEnabled { get; set; } = true;
-
-    /// <summary>
     /// Overlay environment variable values on top of whatever appsettings.json
     /// provided. Env vars always win. Call this after IOptions binding.
     /// </summary>
@@ -138,12 +129,6 @@ public sealed class NexusConfig
         TempTier1 = EnvDouble("NEXUS_TEMP_TIER1", TempTier1);
         TempTier2 = EnvDouble("NEXUS_TEMP_TIER2", TempTier2);
         TempTier3 = EnvDouble("NEXUS_TEMP_TIER3", TempTier3);
-
-        // Pivot gates toggle for A/B testing (default: on).
-        var pivotEnv = Environment.GetEnvironmentVariable("NEXUS_PIVOT_GATES");
-        if (!string.IsNullOrEmpty(pivotEnv))
-            PivotGatesEnabled = pivotEnv.Trim().Equals("1", StringComparison.OrdinalIgnoreCase)
-                              || pivotEnv.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Env(string name, string fallback) =>

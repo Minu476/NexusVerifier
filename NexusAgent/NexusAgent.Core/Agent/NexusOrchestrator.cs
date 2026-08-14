@@ -215,9 +215,7 @@ public sealed class NexusOrchestrator
                 MaxTurns: config.MaxTurnsPerEpisode,
                 FossilMatchThreshold: config.FossilMatchThreshold,
                 FossilDirectSubstituteThreshold: config.FossilDirectSubstituteThreshold,
-                GoalGraph: goalGraph,
-                PivotGatesEnabled: config.PivotGatesEnabled,
-                MaxDiagnosesPerEpisode: config.MaxDiagnosesPerEpisode);
+                GoalGraph: goalGraph);
 
             using var episodeCts = new CancellationTokenSource(config.EpisodeTimeout);
             using var combined = CancellationTokenSource.CreateLinkedTokenSource(ct, episodeCts.Token);
@@ -325,110 +323,10 @@ public sealed class NexusOrchestrator
                 stuckEpisodes++;
                 if (stuckEpisodes >= MaxStuckEpisodes)
                 {
-                    // ── Between-episode reformulation (per OAI walkthroughs) ──────────────
-                    // Instead of aborting, force the model to diagnose why this *approach*
-                    // failed and produce a genuinely different proof strategy. The next episode
-                    // starts from the reformulated sketch, not a blind fresh attempt at the same
-                    // style. This is the diagnose-then-pivot discipline every frontier proof in
-                    // the walkthroughs used — the win is in changing the approach, not grinding
-                    // harder on one.
-                    //
-                    // Only attempt if there are remaining episodes AND pivot gates are enabled;
-                    // otherwise abort as before.
-                    if (ep + 1 < config.MaxEpisodes && bestSketch is not null && config.PivotGatesEnabled)
-                    {
-                        _log.LogInformation(
-                            "Problem {Id}: {N} consecutive stuck episodes — invoking between-episode reformulation (approach pivot)",
-                            problem.Id, stuckEpisodes);
-
-                        var reformCtx = new RouterContext
-                        {
-                            EpisodeIndex = ep,
-                            TurnIndex = config.MaxTurnsPerEpisode,  // force Tier 3 for the pivot
-                            TurnsSinceLastProgress = config.MaxTurnsPerEpisode,
-                            CurrentSorryCount = bestSorryCount,
-                        };
-
-                        // Reformulation-retry loop: if the first attempt produces non-compiling
-                        // Lean, feed the compile error back and retry once (same pattern as the
-                        // prover turn loop). This addresses the Grimm case where the model
-                        // produced a genuinely different approach but with a syntax error.
-                        string? acceptedSketch = null;
-                        int acceptedSorry = -1;
-                        const int maxReformRetries = 2;  // 1 initial + 1 retry with error feedback
-                        string? priorAttemptSketch = null;
-                        string[]? priorAttemptErrors = null;
-
-                        for (int reformAttempt = 0; reformAttempt < maxReformRetries; reformAttempt++)
-                        {
-                            var reformRequest = _promptBuilder.BuildReformulationRequest(
-                                problem.Statement, bestSketch, bestSorryCount, ep + 1,
-                                priorAttemptSketch: priorAttemptSketch,
-                                priorAttemptErrors: priorAttemptErrors);
-
-                            try
-                            {
-                                var reformResponse = await _router.SendAsync(reformCtx, reformRequest, ct);
-                                totalCost += reformResponse.EstimatedCostUsd;
-
-                                var newSketch = PromptBuilder.ExtractLeanFromResponse(reformResponse.Content);
-                                if (string.IsNullOrWhiteSpace(newSketch))
-                                {
-                                    _log.LogWarning(
-                                        "Problem {Id}: reformulation attempt {A} produced no Lean code {Note}",
-                                        problem.Id, reformAttempt + 1,
-                                        reformAttempt == 0 ? "— model may have returned natural-language analysis only" : "");
-                                    break;  // no point retrying if the model won't produce code
-                                }
-                                if (!SketchValidator.IsStructurallyValid(problem.InitialSketch, newSketch))
-                                {
-                                    _log.LogWarning(
-                                        "Problem {Id}: reformulation attempt {A} — structural gate rejected (declaration modified)",
-                                        problem.Id, reformAttempt + 1);
-                                    break;
-                                }
-
-                                var reformCompile = await _lean.CompileAsync(newSketch, ct);
-                                if (reformCompile.Compiled)
-                                {
-                                    acceptedSketch = newSketch;
-                                    acceptedSorry = reformCompile.SorryCount;
-                                    _log.LogInformation(
-                                        "Problem {Id}: reformulation accepted (attempt {A}) — new sketch with {S} sorry, starting fresh approach",
-                                        problem.Id, reformAttempt + 1, reformCompile.SorryCount);
-                                    break;
-                                }
-                                else if (reformAttempt < maxReformRetries - 1)
-                                {
-                                    _log.LogInformation(
-                                        "Problem {Id}: reformulation attempt {A} did not compile ({E} error(s)) — retrying with error feedback",
-                                        problem.Id, reformAttempt + 1, reformCompile.Errors.Length);
-                                    priorAttemptSketch = newSketch;
-                                    priorAttemptErrors = reformCompile.Errors;
-                                }
-                                else
-                                {
-                                    _log.LogWarning(
-                                        "Problem {Id}: reformulation did not compile after {A} attempt(s) — aborting",
-                                        problem.Id, reformAttempt + 1);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _log.LogWarning(ex,
-                                    "Problem {Id}: reformulation attempt {A} failed — aborting", problem.Id, reformAttempt + 1);
-                                break;
-                            }
-                        }
-
-                        if (acceptedSketch is not null)
-                        {
-                            currentSketch = acceptedSketch;
-                            stuckEpisodes = 0;
-                            continue;
-                        }
-                    }
-
+                    // Between-episode reformulation (the "approach pivot") lived here from
+                    // 2026-08-03 to 2026-08-14. Removed after four A/B rounds showed no
+                    // effect (see docs/PIVOT_GATES_POSTMORTEM.md) — reformulations compiled
+                    // ~7% of the time and cost +28-52% per run for identical outcomes.
                     _log.LogWarning(
                         "Problem {Id}: {N} consecutive episodes with no improvement — aborting remaining episodes",
                         problem.Id, stuckEpisodes);
@@ -580,12 +478,4 @@ public sealed record OrchestratorConfig
     public float PlannerBranchingWeight { get; init; } = 0.35f;
     public float PlannerErrorWeight { get; init; } = 0.50f;
     public float PlannerNoveltyBonus { get; init; } = 0.30f;
-    /// <summary>When true, obstruction-diagnosis + between-episode reformulation gates are
-    /// active. When false, both revert to original abort behavior (for A/B testing).</summary>
-    public bool PivotGatesEnabled { get; init; } = true;
-    /// <summary>Safety cap: max obstruction-diagnosis calls per episode. Each diagnosis resets
-    /// the consecutive-structural-violation counter, so without a cap a model could alternate
-    /// reward-hacking and diagnosis indefinitely within an episode. Once exhausted, a further
-    /// consecutive violation aborts the episode instead of diagnosing again.</summary>
-    public int MaxDiagnosesPerEpisode { get; init; } = 1;
 }

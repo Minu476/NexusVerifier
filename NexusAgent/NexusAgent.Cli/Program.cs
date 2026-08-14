@@ -678,7 +678,13 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
 
             if (await neo4j.IsProblemSolvedAsync(id, CancellationToken.None))
             {
-                log.LogInformation("--- Skipping {Id} — already solved ---", id);
+                // WARN, not INFO: this skip is tag-scoped to all history, so a reused --source
+                // tag silently shrinks the corpus. This nearly invalidated pivot A/B round 3
+                // (two problems skipped invisibly). If skips appear here unexpectedly, the tag
+                // is stale — abort and re-run with a fresh tag rather than trusting the count.
+                log.LogWarning(
+                    "--- Skipping {Id} — marked Solved in Neo4j for this id (stale --source tag? check before trusting run size) ---",
+                    id);
                 return;
             }
 
@@ -702,7 +708,6 @@ static async Task<int> RunBenchAsync(IHost host, string[] args)
                 PlannerBranchingWeight = plannerBranchingWeight,
                 PlannerErrorWeight = plannerErrorWeight,
                 PlannerNoveltyBonus = plannerNoveltyBonus,
-                PivotGatesEnabled = nexusConfig.PivotGatesEnabled,
             };
 
             log.LogInformation("--- Starting {Id} (domain={Domain}, budget remaining: ${Rem:F2}) ---",
