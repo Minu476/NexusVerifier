@@ -1,0 +1,16 @@
+import ChallengeDeps
+
+open Complex Set
+open scoped BigOperators ComplexConjugate
+
+/-! Zeta23 proof-reconstruction stub: half_simple_on_critical_line_cumulative
+    Original: Zeta23 comparator challenge (Anthropic, 2026)
+    This stub imports the DEFINITIONS (ChallengeDeps) but NOT the Zeta23 library or Solution,
+    so the original proof is out of scope — genuine reconstruction required. -/
+
+noncomputable section
+
+theorem g_half_simple_on_critical_line_cumulative_new : ∀ ε > 0, ∃ T₀ : ℝ, ∀ T ≥ T₀, (1 / 2 - ε) * (Ncount 0 T : ℝ) ≤ N0simple 0 T := by
+  sorry
+
+end
