@@ -25,7 +25,7 @@ public sealed class ProofFossilizerTests : IAsyncLifetime
             Neo4jUri = Environment.GetEnvironmentVariable("NEO4J_URI") ?? "bolt://localhost:7687",
             Neo4jUser = Environment.GetEnvironmentVariable("NEO4J_USERNAME") ?? "neo4j",
             Neo4jPassword = Environment.GetEnvironmentVariable("NEO4J_PASSWORD") ?? "",
-            Neo4jDatabase = "nexusdb",
+            Neo4jDatabase = Environment.GetEnvironmentVariable("NEO4J_DATABASE") ?? "nexusdb",
             TacticVocabPath = "does_not_exist.json",
         });
 
