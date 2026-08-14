@@ -1,3 +1,7 @@
 [submodule "external/Topos"]
 	path = external/Topos
 	url = https://github.com/Minu476/Topos.git
+
+[submodule "formal-conjectures"]
+	path = formal-conjectures
+	url = https://github.com/google-deepmind/formal-conjectures.git
