@@ -18,11 +18,17 @@ from here on handoff state gets written at every phase boundary, not just closeo
 | 0 — publish | **DONE.** PR #13 merged (round-4 writeup + 08-04 handoff). gitleaks-clean. |
 | 1 — housekeeping | **DONE, PR #14 OPEN** (`chore/catchup-hygiene`, 6 commits). Backup tarball verified; Prevent corpus vendored; both submodules registered; `~/.zshrc` fixed; **measured 162/164** (2 = stale-olen, resolved by the port); A/B design doc pre-registered with McNemar MDE. |
 | 2 — gate removal | **DONE, PR #15 OPEN** (`fix/remove-pivot-gates`, stacked on #14). Gates deleted, structural gate + CitationDetector kept, loud solved-skip WARN, `docs/PIVOT_GATES_POSTMORTEM.md`. **156/158** (same 2 olen failures). Lessons-graph write DEFERRED to Phase 5 (FSDE creds live in keychain — `.env.keychain`). |
-| 3 — v4.33 port | **~90% DONE.** See §2 — this is where work stopped. |
+| 3 — v4.33 port | **DONE** (finished 2026-08-14 later-session). All 7 critical corpus files fixed; `FormalConjectures.Subsets.FC100SolvedSet1` builds green (8946 jobs); submodule repinned to fork `a8923dd`; **test suite 158/158, zero failures**. ⚠️ One deferred item: the `nexus-v4.33` → fork push and the parent-branch push hung on a git-POST egress stall — both commits are LOCAL and complete; re-run `git push` in both repos when the network recovers. ~40 non-critical corpus files still fail on v4.33 (left for upstream). | |
 | 4 — dump + A/B | Not started. Everything it needs is ready (walker compiles on v4.33 unchanged — validated in zeta-23-lean). |
 | 5 — closeout | Not started. |
 
-## 2. Phase 3 exact state (resume here)
+## 2. Phase 3 final fixes (the 7 files, for the record)
+
+1054: `∑ i < k` elaborates as `Finset.Iio`, vs `hsum`'s `Finset.range` — aligned with `rw [Nat.Iio_eq_range] at hsub`. 141: explicit case analyses for two finite set equalities. 10799: `Xor'` → `Xor` (decidability). sIncreasingrTuples: `Pi.prod` → `Function.prod` + rfl. BoxdotConjecture: `quotPrecheck false in` for the scoped notation + statement expanded to `thms`-explicit form. OEIS/6697: `Nat.lt_two_pow_self` with the exponent in the goal's EXACT shape (`i + 1 + 1`, not `i + 2`) — omega does not normalize exponents. Test.lean: `Walk.rotate` gained an explicit vertex argument; `IsCycle.rotate` did not.
+
+**Port-check gotcha (cost real time):** verify with exit codes, not `grep "error:"` — Lean emits `error(lean.synthInstanceFailed):` which the colon-pattern misses, producing false greens.
+
+## 2b. Original Phase-3 mid-state (superseded by §2, kept for history)
 
 **Done and pushed** — submodule branch `nexus-v4.33` on fork `Minu476/formal-conjectures`
 (remote `fork`; upstream push DISABLED via bogus push-URL; branch expiry **2026-09-30**):
