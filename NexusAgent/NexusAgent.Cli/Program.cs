@@ -229,6 +229,7 @@ try
         "stats"     => await RunStatsAsync(host),
         "probe"     => await RunProbeAsync(host),
         "ingest-hg" => await RunIngestHgAsync(host, rest),
+        "seed-dump" => await RunSeedDumpAsync(host, rest),
         "scan-hg"      => await RunScanHgAsync(host, rest),
         "ingest-parts" => await VerifiedPartsPlugin.RunCommandAsync(host, rest),  // LEGO
         _              => UnknownCommand(cmd),
@@ -244,6 +245,100 @@ finally
     await Log.CloseAndFlushAsync();
 }
 return exitCode;
+
+static async Task<int> RunSeedDumpAsync(IHost host, string[] args)
+{
+    // Ingests InfoTreeWalker transition JSONL (see formal-conjectures/scripts/dump_transitions.sh)
+    // into the Neo4j fossil vault as ProofFossil nodes tagged runId="MATHLIB_DUMP". The standard
+    // startup seeding (GetAllFossilsAsync → ToposTacticStore.SeedFromFossilsAsync) then picks them
+    // up like any other fossil — no special-cased seeding path. Point NEXUS_NEO4J_URI at the
+    // TREATMENT database; control must stay dump-free (verification query in the A/B design doc).
+    string? input = null;
+    int max = int.MaxValue;
+    for (int i = 0; i < args.Length - (args.Length % 2); i += 2)
+    {
+        if (args[i] == "--input") input = args[i + 1];
+        else if (args[i] == "--max" && int.TryParse(args[i + 1], out var m)) max = m;
+    }
+    if (input is null || !File.Exists(input))
+    {
+        Console.WriteLine("usage: seed-dump --input <transitions.jsonl> [--max N]");
+        return 2;
+    }
+
+    using var scope = host.Services.CreateScope();
+    var neo4j = scope.ServiceProvider.GetRequiredService<INeo4jClient>();
+    var encoder = scope.ServiceProvider.GetRequiredService<ProofStateEncoder>();
+    var log = Log.ForContext("SourceContext", "SeedDump");
+
+    // Term-info rows carry identifier-shaped tactic_raw (constant names, dotted refs) — they are
+    // lemma references, not tactics, and would poison tactic proposals. Tactic rows carry actual
+    // tactic syntax; multi-word/bracketed syntax never matches the identifier pattern.
+    var identPattern = new System.Text.RegularExpressions.Regex(
+        @"^[A-Za-z_][A-Za-z0-9_.']*$",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    int total = 0, kept = 0, dupes = 0, written = 0;
+    var seen = new HashSet<(string, string)>();
+    using var fs = File.OpenText(input);
+    string? line;
+    while ((line = await fs.ReadLineAsync()) is not null && written < max)
+    {
+        if (line.Length == 0) continue;
+        total++;
+        JsonElement row;
+        try { row = JsonDocument.Parse(line).RootElement; }
+        catch { continue; }
+        if (!row.TryGetProperty("success", out var ok) || !ok.GetBoolean()) continue;
+        if (!row.TryGetProperty("goal_before", out var gb) || !row.TryGetProperty("tactic_raw", out var tr)) continue;
+        var goal = gb.GetString();
+        var tactic = tr.GetString();
+        if (string.IsNullOrWhiteSpace(goal) || string.IsNullOrWhiteSpace(tactic)) continue;
+        if (identPattern.IsMatch(tactic)) continue;               // term-level row, not a tactic
+        if (goal.Length > 2000 || tactic.Length > 400) continue;  // encoder sanity
+        row.TryGetProperty("theorem_source", out var thm);
+        var theorem = thm.ValueKind == JsonValueKind.String ? thm.GetString() ?? "" : "";
+
+        var key = (goal, tactic);
+        if (!seen.Add(key)) { dupes++; continue; }
+        kept++;
+
+        var state = new ProofState
+        {
+            PendingGoals = new[] { goal },
+            Hypotheses = [],
+            TacticHistory = [],
+            SorryCount = 1,
+            ErrorMessages = [],
+            DomainTag = "mathlib",
+            SketchHash = string.Empty,
+        };
+        var fossil = new ProofFossil
+        {
+            Id = "mdump-" + Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(goal + "\u0000" + tactic)))[..16].ToLowerInvariant(),
+            SubgoalText = goal,
+            TacticBlock = tactic,
+            StateVector = encoder.Encode(state),
+            DomainTag = "mathlib",
+            SorryCountBefore = 1,
+            SorryCountAfter = 0,
+            ProvedAt = DateTime.UtcNow,
+            SourceProblems = new[] { theorem },
+            UseCount = 0,
+            CompilationVerified = true,
+            RunId = "MATHLIB_DUMP",
+        };
+        await neo4j.UpsertFossilAsync(fossil, CancellationToken.None);
+        written++;
+        if (written % 1000 == 0) log.Information("seed-dump: {Written} fossils written", written);
+    }
+    log.Information("seed-dump done: {Total} rows, {Kept} kept, {Dupes} duplicates, {Written} written",
+        total, kept, dupes, written);
+    Console.WriteLine($"seed-dump: {written} dump-fossils written (of {total} rows, {dupes} dupes dropped)");
+    return 0;
+}
 
 static async Task<int> RunScanHgAsync(IHost host, string[] args)
 {
