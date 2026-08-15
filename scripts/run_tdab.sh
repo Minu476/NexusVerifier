@@ -11,7 +11,7 @@ DASHSCOPE="$(grep '^DASHSCOPE_API_KEY=' .env | head -1 | cut -d= -f2-)"
 export NEXUS_NEO4J_USER=neo4j NEXUS_NEO4J_PASSWORD="$PW" NEXUS_NEO4J_DATABASE=neo4j
 export NEXUS_LEAN_PROJECT="$REPO/formal-conjectures"
 export DEEPSEEK_API_KEY="$DEEPSEEK" DASHSCOPE_API_KEY="$DASHSCOPE" NEXUS_BUDGET_USD=200
-CLI="$REPO/NexusAgent/NexusAgent.Cli/bin/Release/net10.0/NexusAgent.Cli.dll"
+CLI="$REPO/NexusAgent/NexusAgent.Cli/bin/Release/net10.0/nexus.dll"
 BENCH_ARGS=(bench data/swarm_solvable --parallel 12 --max-episodes 3 --max-turns 10 --graph-first)
 
 stage="${1:?usage: run_tdab.sh control|isolate|treatment}"
