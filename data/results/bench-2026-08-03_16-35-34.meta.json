@@ -1,0 +1,18 @@
+{
+  "Timestamp": "2026-08-03_16-35-34",
+  "Source": "PivotAB-Treatment",
+  "ProblemDirectory": "/Users/nassertowfigh/Projects/NexusVerifier/data/swarm_pivot_ab",
+  "ProblemCount": 17,
+  "MaxEpisodes": 3,
+  "MaxTurns": 10,
+  "Parallelism": 12,
+  "BudgetCapUsd": 200,
+  "SpentUsd": 0.5077151628,
+  "ModelTier1": "deepseek-v4-flash",
+  "ModelTier2": "deepseek-v4-flash",
+  "ModelTier3": "deepseek-v4-pro",
+  "DeepSeekBaseUrl": "https://api.deepseek.com/v1",
+  "GeminiModel": "gemini-2.5-flash",
+  "QwenCloudModel": "qwen3.7-max",
+  "SolvedCount": 7
+}

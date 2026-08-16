@@ -34,3 +34,17 @@
 
 # Large zip artifacts
 *.zip
+
+# Raw bench/A-B logs — writeups + bench *.json/*.meta.json are committed, logs are not
+data/results/*.log
+# Bench HTML reports generated alongside the JSONs (older tracked ones stay tracked)
+data/results/*.html
+
+# Agent session tooling
+.zcode/
+
+# Local notes
+ToDoList/
+
+# Training/eval telemetry byproducts (phase4 experiments)
+NexusAgent/phase4_results/
