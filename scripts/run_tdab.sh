@@ -27,9 +27,11 @@ isolate)
   docker volume rm tdab-data 2>/dev/null || true
   docker volume create tdab-data
   docker stop nexus-neo4j
-  docker run --rm -v f3c67c81cbe80a37cbacb1ce3d5ca39abaf7699da7750e13a1955c9f99eb8405:/src \
-    -v tdab-data:/dst -v "$PWD/data/tmp:/dumps" neo4j:5-community \
-    bash -c 'cp -a /src/data /dst/data && chown -R 7474:7474 /dst' || { docker start nexus-neo4j; exit 1; }
+  # --entrypoint bash: the neo4j entrypoint force-drops to uid 7474 even under --user root
+  docker run --rm --user root --entrypoint bash \
+    -v f3c67c81cbe80a37cbacb1ce3d5ca39abaf7699da7750e13a1955c9f99eb8405:/src \
+    -v tdab-data:/dst neo4j:5-community \
+    -c 'cp -a /src/. /dst/ && chown -R 7474:7474 /dst' || { docker start nexus-neo4j; exit 1; }
   docker start nexus-neo4j
   sleep 20
   docker run -d --name nexus-neo4j-ab -p 27690:7687 -v tdab-data:/data \
